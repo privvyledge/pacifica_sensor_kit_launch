@@ -1,0 +1,79 @@
+<launch>
+  <!-- For testing purposes only. This block should be commented out -->
+
+<!--  <arg name="vehicle_model" default="sample_vehicle" description="vehicle model name"/>-->
+<!--  <arg name="vehicle_id" default="default" description="vehicle id"/>-->
+<!--  <arg name="vehicle_mirror_param_file" default="$(find-pkg-share $(var vehicle_model)_description)/config/mirror.param.yaml"/>-->
+<!--  <arg name="sensor_model" default="sample_sensor_kit" description="sensor model name"/>-->
+<!--  <arg name="model" default="$(find-pkg-share tier4_vehicle_launch)/urdf/vehicle.xacro"/>-->
+<!--  <arg name="launch_vehicle_interface" default="true" description="launch vehicle interface"/>-->
+<!--  <let name="vehicle_model_pkg" value="$(find-pkg-share $(var vehicle_model)_description)"/>-->
+<!--  <arg name="config_dir" default="$(find-pkg-share individual_params)/config/$(var vehicle_id)/$(var sensor_model)"/>-->
+
+<!--  &lt;!&ndash; Global parameters &ndash;&gt;-->
+<!--  <group scoped="false">-->
+<!--    <include file="$(find-pkg-share global_parameter_loader)/launch/global_params.launch.py">-->
+<!--      <arg name="use_sim_time" value="false"/>-->
+<!--      <arg name="vehicle_model" value="$(var vehicle_model)"/>-->
+<!--    </include>-->
+<!--  </group>-->
+
+<!--  <include file="$(find-pkg-share tier4_vehicle_launch)/launch/vehicle.launch.xml">-->
+<!--    <arg name="vehicle_model" value="$(var vehicle_model)"/>-->
+<!--    <arg name="sensor_model" value="$(var sensor_model)"/>-->
+<!--    <arg name="launch_vehicle_interface" value="$(var launch_vehicle_interface)"/>-->
+<!--  </include>-->
+
+<!--  <node name="robot_state_publisher" pkg="robot_state_publisher" exec="robot_state_publisher">-->
+<!--    <param name="robot_description" value="$(command 'xacro $(var model) vehicle_model:=$(var vehicle_model) sensor_model:=$(var sensor_model)')"/>-->
+<!--  </node>-->
+
+  <!--   End testing block -->
+
+  <!-- Params -->
+  <arg name="launch_driver" default="true"/>
+  <arg name="sensor_frame" default="quanergy"/>
+  <arg name="base_frame" default="base_link"/>
+  <arg name="sensor_ip" default="192.168.1.100"/>
+  <arg name="host_ip" default="192.168.1.50"/>
+  <arg name="publish_freq" default="50.0"/>
+<!--  <arg name="user_config_path" default=""/>-->
+  <arg name="vehicle_mirror_param_file"/>
+  <arg name="use_pointcloud_container" default="false"/>
+  <arg name="container_name" default="livox_node_container"/>
+
+
+  <!-- Launch Quanergy driver
+  (https://github.com/privvyledge/quanergy_client_ros/blob/feature/ros2/launch/client.launch.py |
+  https://github.com/privvyledge/quanergy_client_ros/blob/feature/ros2/readme/ros2.md#testing-build) -->
+  <include file="$(find-pkg-share quanergy_client_ros)/launch/client.launch.py" if="$(var launch_driver)">
+    <arg name="frame" value="$(var sensor_frame)"/>
+    <arg name="host" value="$(var sensor_ip)"/> <!-- Host name or IP of the sensor -->
+    <arg name="ns" value="quanergy"/>
+    <arg name="topic" value="points"/>
+
+    <arg name="useRosTime" value="True"/>
+    <arg name="return" value="0"/><!-- return selection
+       only applies to M-series
+       For 3 returns, 'all' creates an unorganized point cloud
+       For single return, explicitly setting a value produces an error if the selection doesn't match the packet
+       options: 0, 1, 2, all, or all_separate_topics -->
+
+  </include>
+
+  <!-- Launch pointcloud filter components -->
+  <include file="$(find-pkg-share common_sensor_launch)/launch/quanergy_node_container.launch.py">
+    <arg name="launch_driver" value="$(var launch_driver)"/>
+    <arg name="frame_id" value="$(var sensor_frame)"/>
+    <arg name="base_frame" value="$(var base_frame)"/>
+    <arg name="sensor_ip" value="$(var sensor_ip)"/>
+    <arg name="host_ip" value="$(var host_ip)"/>
+    <arg name="publish_freq" value="$(var publish_freq)"/>
+<!--    <arg name="user_config_path" value="$(var user_config_path)"/>-->
+    <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>
+    <arg name="use_intra_process" value="true"/>
+    <arg name="use_multithread" value="false"/>
+    <arg name="use_pointcloud_container" value="$(var use_pointcloud_container)"/>
+    <arg name="container_name" value="$(var container_name)"/>
+  </include>
+</launch>

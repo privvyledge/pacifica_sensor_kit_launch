@@ -1,0 +1,94 @@
+<!--
+Steps:
+  Launch Azure Kinect camera
+  Launch 4 USB_CAM or v4l2 cam nodes
+  Relay/rename/remap topics.
+
+Optionally: launch with containers instead
+-->
+
+<launch>
+  <arg name="launch_driver" default="true"/>
+
+<!--  &lt;!&ndash;    common parameters &ndash;&gt;-->
+<!--  <arg name="image_0" default="camera_0" description="image raw topic name"/>-->
+<!--  <arg name="image_0" default="camera_0" description="image raw topic name"/>-->
+
+<!--  &lt;!&ndash;    tensorrt params &ndash;&gt;-->
+<!--  <arg name="mode" default="FP32"/>-->
+<!--  <arg name="yolo_type" default="yolov3" description="choose image raw number(0-7)"/>-->
+<!--  <arg name="label_file" default="coco.names" description="choose image raw number(0-7)"/>-->
+<!--  <arg name="gpu_id" default="0" description="choose image raw number(0-7)"/>-->
+<!--  <arg name="use_intra_process" default="true"/>-->
+<!--  <arg name="use_multithread" default="true"/>-->
+
+  <group>
+    <push-ros-namespace namespace="camera"/>
+    <group>
+      <push-ros-namespace namespace="front"/>
+
+      <!-- launch camera driver -->
+      <include file="$(find-pkg-share common_sensor_launch)/launch/monocular_camera.launch.py">
+        <!-- Camera driver parameters -->
+        <arg name="camera_name" value="front"/>
+        <arg name="camera_frame" value="camera_link"/>
+        <arg name="camera_info_url" value="$(find-pkg-share common_sensor_launch)/config/$(var camera_name).yaml"/>
+        <arg name="video_device" value="/dev/video0"/>
+        <arg name="pixel_format" value="mjpeg2rgb"/> <!-- mjpeg2rgb for usb_cam, YUYV for v4l2-->
+        <arg name="io_method" value="mmap"/>
+        <arg name="output_encoding" value="bgr8"/> <!-- For v4l2 node -->
+        <arg name="image_width" value="1920"/>
+        <arg name="image_height" value="1080"/>
+        <arg name="raw_image_topic" value="image_raw" description="image raw topic name"/>
+        <arg name="compressed_image_topic" value="image_raw/compressed" description="image raw topic name"/>
+        <arg name="camera_info_topic" value="camera_info" description="image raw topic name"/>
+
+        <!-- Image rectification parameters -->
+        <arg name="rectify_image" value="true"/>
+      <!--  <arg name="rect_image_topic" value="image_rect" description="image rect topic name"/>-->
+      <!--  <arg name="compressed_rect_image_topic" value="image_rect/compressed" description="image rect topic name"/>-->
+        <arg name="queue_size" value="5" />
+        <arg name="container" value="" />
+      </include>
+
+      <node pkg="topic_tools" exec="relay" name="tl_camera_info_relay" output="log">
+        <param name="input_topic" value="$(var camera_type)/camera_info"/>
+        <param name="output_topic" value="camera_info"/>
+        <param name="type" value="sensor_msgs/msg/CameraInfo"/>
+        <param name="reliability" value="best_effort"/>
+      </node>
+
+      <node pkg="topic_tools" exec="relay" name="tl_compressed_image_relay" output="log">
+        <param name="input_topic" value="$(var camera_type)/image_raw/compressed"/>
+        <param name="output_topic" value="image_raw/compressed"/>
+        <param name="type" value="sensor_msgs/msg/CompressedImage"/>
+        <param name="reliability" value="best_effort"/>
+      </node>
+
+
+      <!-- Launch using containers -->
+<!--      <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">-->
+<!--        <arg name="mode" value="$(var mode)"/>-->
+<!--        <arg name="input_image" value="$(var image_0)"/>-->
+<!--        <arg name="camera_container_name" value="front_camera_container"/>-->
+<!--        <arg name="yolo_type" value="$(var yolo_type)"/>-->
+<!--        <arg name="label_file" value="$(var label_file)"/>-->
+<!--        <arg name="gpu_id" value="$(var gpu_id)"/>-->
+<!--        <arg name="use_intra_process" value="$(var use_intra_process)"/>-->
+<!--        <arg name="use_multithread" value="$(var use_multithread)"/>-->
+<!--        <arg name="output_topic" value="camera0/rois0"/>-->
+<!--      </include>-->
+<!--      <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">-->
+<!--        <arg name="mode" value="$(var mode)"/>-->
+<!--        <arg name="input_image" value="$(var image_1)"/>-->
+<!--        <arg name="camera_container_name" value="front_camera_container"/>-->
+<!--        <arg name="yolo_type" value="$(var yolo_type)"/>-->
+<!--        <arg name="label_file" value="$(var label_file)"/>-->
+<!--        <arg name="gpu_id" value="$(var gpu_id)"/>-->
+<!--        <arg name="use_intra_process" value="$(var use_intra_process)"/>-->
+<!--        <arg name="use_multithread" value="$(var use_multithread)"/>-->
+<!--        <arg name="output_topic" value="camera1/rois1"/>-->
+<!--      </include>-->
+    </group>
+  </group>
+</launch>

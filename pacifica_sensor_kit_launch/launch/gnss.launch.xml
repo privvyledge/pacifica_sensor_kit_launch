@@ -1,0 +1,62 @@
+<!--
+Todos:
+  * Setup ntrip rtk client: https://github.com/Robeff-Technology/ntrip_client
+-->
+
+<launch>
+  <arg name="autoware_launch" default="false" description="Whether to launch nodes for use with Autoware or not."/>
+  <arg name="launch_driver" default="true"/>
+  <arg name="gnss_receiver" default="yahboom" description="yahboom, aceinna"/>
+  <arg name="port" default="/dev/gps_usb"/>
+  <arg name="baudrate" default="115200"/>
+  <arg name="gnss_frame" default="gnss_link"/>
+  <arg name="time_ref_source" default="gps"/>
+  <arg name="useRMC" default="False"/>
+
+  <group>
+    <push-ros-namespace namespace="gnss"/>
+
+    <!-- Switch topic name -->
+    <let name="navsatfix_topic_name" value="yahboom/nav_sat_fix" if="$(eval &quot;'$(var gnss_receiver)'=='yahboom'&quot;)"/>
+    <let name="navsatfix_topic_name" value="ublox/nav_sat_fix" if="$(eval &quot;'$(var gnss_receiver)'=='ublox'&quot;)"/>
+    <let name="navsatfix_topic_name" value="septentrio/nav_sat_fix" if="$(eval &quot;'$(var gnss_receiver)'=='septentrio'&quot;)"/>
+    <let name="orientation_topic_name" value="/autoware_orientation"/>
+
+    <!-- Yahboom Driver -->
+    <group if="$(eval &quot;'$(var gnss_receiver)'=='yahboom'&quot;)">
+      <node pkg="nmea_navsat_driver" name="yahboom" exec="nmea_serial_driver" if="$(var launch_driver)" respawn="true" respawn_delay="1.0">
+        <remap from="fix" to="~/nav_sat_fix"/>
+<!--        <remap from="/vel" to="yahboom/gps/vel"/>-->
+<!--        <remap from="/heading" to="yahboom/gps/heading"/>-->
+
+<!--        <param from="$(find-pkg-share nmea_navsat_driver)/config/nmea_navsat_driver.yaml"/>-->
+        <param name="port" value="$(var port)" />
+        <param name="baud" value="$(var baudrate)" />
+        <param name="frame_id" value="$(var gnss_frame)" />
+        <param name="time_ref_source" value="$(var time_ref_source)" />
+        <param name="useRMC" value="$(var useRMC)" />
+      </node>
+    </group>
+
+<!--    &lt;!&ndash;    if="$(eval &quot;'$(var launch_driver)'"&ndash;&gt;-->
+<!--    <group if="$(var launch_driver)" >-->
+<!--        <include file="$(find-pkg-share nmea_navsat_driver)/launch/nmea_serial_driver.launch.py">-->
+<!--          <arg name="frame_id" value="$(var gnss_frame)"/>-->
+<!--      </include>-->
+<!--    </group>-->
+
+    <!-- NavSatFix to MGRS Pose -->
+    <include file="$(find-pkg-share gnss_poser)/launch/gnss_poser.launch.xml" if="$(var autoware_launch)" >
+      <arg name="input_topic_fix" value="$(var navsatfix_topic_name)"/>
+      <arg name="input_topic_orientation" value="$(var orientation_topic_name)"/>
+
+      <arg name="output_topic_gnss_pose" value="pose"/>
+      <arg name="output_topic_gnss_pose_cov" value="pose_with_covariance"/>
+      <arg name="output_topic_gnss_fixed" value="fixed"/>
+
+      <arg name="use_gnss_ins_orientation" value="true"/>
+
+      <arg name="gnss_frame" value="$(var gnss_frame)"/>
+    </include>
+  </group>
+</launch>

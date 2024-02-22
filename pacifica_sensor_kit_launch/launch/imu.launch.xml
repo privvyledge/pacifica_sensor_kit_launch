@@ -1,0 +1,52 @@
+<launch>
+  <arg name="autoware_launch" default="false" description="Whether to launch nodes for use with Autoware or not."/>
+  <arg name="launch_driver" default="true"/>
+  <arg name="port" default="/dev/imu_usb"/>
+  <arg name="imu_driver" default="yahboom"/>
+  <arg name="imu_frame_id" default="imu_link"/>
+  <arg name="baudrate" default="921600"/>
+
+  <group>
+    <push-ros-namespace namespace="imu"/>
+    <!-- Yahboom IMU launch -->
+    <group>
+      <push-ros-namespace namespace="$(var imu_driver)"/>
+      <node pkg="wit_ros2_imu" name="$(var imu_driver)_imu_driver" exec="wit_ros2_imu" if="$(var launch_driver)">
+<!--        <remap from="imu/data_raw" to="imu_raw"/>-->
+        <param name="port" value="$(var port)"/>
+        <param name="imu_frame_id" value="$(var imu_frame_id)"/>
+        <param name="baud" value="$(var baudrate)" />
+      </node>
+
+      <include file="$(find-pkg-share common_sensor_launch)/launch/imu_corrector.launch.xml">
+        <arg name="autoware_launch" value="$(var autoware_launch)"/>
+        <arg name="imu_driver" value="yahboom"/>
+  <!--      <arg name="imu_topic" value="imu/data_raw"/>-->
+        <arg name="filter_imu" value="false"/>
+        <arg name="use_mag" value="false"/>
+      </include>
+
+<!--      <arg name="imu_raw_name" default="tamagawa/imu_raw"/>-->
+<!--      <arg name="imu_corrector_param_file" default="$(find-pkg-share individual_params)/config/$(var vehicle_id)/sample_sensor_kit/imu_corrector.param.yaml"/>-->
+<!--      <include file="$(find-pkg-share imu_corrector)/launch/imu_corrector.launch.xml">-->
+<!--        <arg name="input_topic" value="$(var imu_raw_name)"/>-->
+<!--        <arg name="output_topic" value="imu_data"/>-->
+<!--        <arg name="param_file" value="$(var imu_corrector_param_file)"/>-->
+<!--      </include>-->
+
+<!--      <include file="$(find-pkg-share imu_corrector)/launch/gyro_bias_estimator.launch.xml">-->
+<!--        <arg name="input_imu_raw" value="$(var imu_raw_name)"/>-->
+<!--        <arg name="input_odom" value="/localization/kinematic_state"/>-->
+<!--        <arg name="imu_corrector_param_file" value="$(var imu_corrector_param_file)"/>-->
+<!--      </include>-->
+
+    </group>
+
+    <!-- Aceinna GNSS Launch. todo -->
+<!--    <group>-->
+<!--      <push-ros-namespace namespace="aceinna"/>-->
+<!--    </group>-->
+
+
+  </group>
+</launch>

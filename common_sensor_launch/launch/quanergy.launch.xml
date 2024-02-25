@@ -38,6 +38,7 @@
   <arg name="lidar_settings_path" default="$(find-pkg-share common_sensor_launch)/config/quanergy_client.xml"/>
   <arg name="topic_name" default="points_raw"/>
   <arg name="ns" default="quanergy"/>
+  <arg name="return_type" default="all"/>
   <arg name="vehicle_mirror_param_file"/>
   <arg name="use_pointcloud_container" default="false"/>
   <arg name="container_name" default="livox_node_container"/>
@@ -53,7 +54,7 @@
     <arg name="topic" value="$(var topic_name)"/>
 
     <arg name="useRosTime" value="True"/>
-    <arg name="return_type" value="0"/><!-- return selection
+    <arg name="return_type" value="$(var return_type)"/><!-- return selection
        only applies to M-series
        For 3 returns, 'all' creates an unorganized point cloud
        For single return, explicitly setting a value produces an error if the selection doesn't match the packet

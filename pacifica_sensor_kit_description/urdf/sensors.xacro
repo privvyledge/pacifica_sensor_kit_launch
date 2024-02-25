@@ -4,7 +4,7 @@
   <xacro:property name="calibration" value="${xacro.load_yaml('$(arg config_dir)/sensors_calibration.yaml')}"/>
 
   <!-- to load the wheel radius automatically -->
-  <xacro:arg name="vehicle_info_dir" default="$(find f1tenth_vehicle_description)/config"/>
+  <xacro:arg name="vehicle_info_dir" default="$(find pacifica_vehicle_description)/config"/>
   <xacro:property name="vehicle_info" value="${xacro.load_yaml('$(arg vehicle_info_dir)/vehicle_info.param.yaml')}"/>
 
   <!-- sensor kit -->

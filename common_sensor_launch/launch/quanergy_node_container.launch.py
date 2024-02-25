@@ -55,14 +55,6 @@ def launch_setup(context, *args, **kwargs):
         return result
 
     """
-    Quanergy M8 configuration setup
-    """
-    package_directory = get_package_share_directory('common_sensor_launch')
-    lidar_config = os.path.join(
-            package_directory, 'config', 'lidar_livox_hap_config.json'
-    )
-
-    """
     Add PointCloud preprocessors
     """
     nodes = []

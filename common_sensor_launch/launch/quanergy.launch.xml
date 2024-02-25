@@ -45,7 +45,7 @@
   <arg name="return_type" default="all"/>
   <arg name="vehicle_mirror_param_file"/>
   <arg name="use_pointcloud_container" default="false"/>
-  <arg name="container_name" default="livox_node_container"/>
+  <arg name="container_name" default="quanergy_node_container"/>
 
 
   <!-- Launch Quanergy driver

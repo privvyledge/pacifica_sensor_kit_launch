@@ -25,20 +25,8 @@
     <xacro:property name="calibration" value="${xacro.load_yaml('$(arg config_dir)/sensor_kit_calibration.yaml')}"/>
 
     <!-- lidar -->
-    <xacro:VLS-128 parent="sensor_kit_base_link" name="quanergy" topic="/quanergy/points_raw" hz="15" samples="220" gpu="$(arg gpu)">
-      <origin
-        xyz="${calibration['sensor_kit_base_link']['quanergy_link']['x']}
-             ${calibration['sensor_kit_base_link']['quanergy_link']['y']}
-             ${calibration['sensor_kit_base_link']['quanergy_link']['z']}"
-        rpy="${calibration['sensor_kit_base_link']['quanergy_link']['roll']}
-             ${calibration['sensor_kit_base_link']['quanergy_link']['pitch']}
-             ${calibration['sensor_kit_base_link']['quanergy_link']['yaw']}"
-      />
-    </xacro:VLS-128>
-
-    <!-- depth camera. todo test azure urdf -->
-    <xacro:macro name="azure_kinect_macro" params="parent x y z roll pitch yaw">
-      <joint name="azure_kinect/camera_link" type="fixed">
+    <xacro:macro name="quanergy_lidar_macro" params="parent x y z roll pitch yaw">
+      <joint name="quanergy_base_joint" type="fixed">
         <origin
           xyz="${x}
                ${y}
@@ -48,12 +36,66 @@
                ${yaw}"
         />
         <parent link="${parent}"/>
-        <child link="camera_base"/>
+        <child link="quanergy_base_link"/>
       </joint>
-      <xacro:azure-kinect>
-<!--          <xacro:insert_block name="origin" />-->
-      </xacro:azure-kinect>
+      <link name="quanergy_base_link">
+<!--        <origin rpy="0 0 0" xyz="0 0 0"/>-->
+      </link>
+
+      <joint name="quanergy_link" type="fixed">
+        <origin xyz="0 0 0.2" rpy="0 0 0"/>
+        <parent link="quanergy_base_link"/>
+        <child link="quanergy_link" />
+      </joint>
+      <link name="quanergy_link">
+<!--        <origin rpy="0 0 0" xyz="0 0 0"/>-->
+      </link>
     </xacro:macro>
+
+    <xacro:quanergy_lidar_macro
+            parent="sensor_kit_base_link"
+            x="${calibration['sensor_kit_base_link']['quanergy_base_link']['x']}"
+            y="${calibration['sensor_kit_base_link']['quanergy_base_link']['y']}"
+            z="${calibration['sensor_kit_base_link']['quanergy_base_link']['z']}"
+            roll="${calibration['sensor_kit_base_link']['quanergy_base_link']['roll']}"
+            pitch="${calibration['sensor_kit_base_link']['quanergy_base_link']['pitch']}"
+            yaw="${calibration['sensor_kit_base_link']['quanergy_base_link']['yaw']}"
+    />
+
+    <!-- depth camera. -->
+    <xacro:macro name="azure_kinect_macro" params="parent x y z roll pitch yaw">
+      <joint name="azure_kinect_joint" type="fixed">
+        <origin
+          xyz="${x}
+               ${y}
+               ${z}"
+          rpy="${roll}
+               ${pitch}
+               ${yaw}"
+        />
+        <parent link="${parent}"/>
+        <child link="azure_kinect/camera_link"/>
+      </joint>
+      <link name="azure_kinect/camera_link">
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+      </link>
+
+      <joint name="azure_base_joint" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <parent link="azure_kinect/camera_link"/>
+        <child link="camera_base" />
+      </joint>
+    </xacro:macro>
+
+    <xacro:azure_kinect_macro
+            parent="sensor_kit_base_link"
+            x="${calibration['sensor_kit_base_link']['azure_kinect/camera_link']['x']}"
+            y="${calibration['sensor_kit_base_link']['azure_kinect/camera_link']['y']}"
+            z="${calibration['sensor_kit_base_link']['azure_kinect/camera_link']['z']}"
+            roll="${calibration['sensor_kit_base_link']['azure_kinect/camera_link']['roll']}"
+            pitch="${calibration['sensor_kit_base_link']['azure_kinect/camera_link']['pitch']}"
+            yaw="${calibration['sensor_kit_base_link']['azure_kinect/camera_link']['yaw']}"
+    />
 
     <!-- monocular cameras -->
     <xacro:monocular_camera_macro

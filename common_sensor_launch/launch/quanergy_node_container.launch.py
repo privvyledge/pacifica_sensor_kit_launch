@@ -174,10 +174,13 @@ def launch_setup(context, *args, **kwargs):
         name='client_node',
         output='screen',
         arguments=[
-                "--host", LaunchConfiguration('host'),
+                "--host", LaunchConfiguration('sensor_ip'),
                 "--settings", LaunchConfiguration('config_file'),
+                # "--use-ros-time", use_ros_time,
                 "--topic", LaunchConfiguration('topic'),
                 "--frame", LaunchConfiguration("frame_id"),
+                # "--calibrate", LaunchConfiguration("calibrate"),
+                "--frame-rate", LaunchConfiguration("frame_rate"),
                 "--return", LaunchConfiguration("return_type")
         ]
     )
@@ -213,14 +216,19 @@ def generate_launch_description():
             DeclareLaunchArgument(name, default_value=default_value, description=description)
         )
 
-    add_launch_arg("host", description='Host name or IP of the sensor.')
+    add_launch_arg("sensor_ip", "192.168.10.166", "Host name or IP of the sensor.")
     add_launch_arg("ns", default_value="quanergy", description='Namespace for the node.')
     add_launch_arg("topic", default_value="points", description='ROS topic for publishing the point cloud.')
     add_launch_arg("frame", default_value="quanergy", description='Frame name inserted in the point cloud')
     add_launch_arg("return_type", default_value="all", description='0, 1, 2, all, all_separate_topics')
+    add_launch_arg("calibrate", default_value="False",
+                   description='whether to calculate the parameters from sensor data before applying')
+    add_launch_arg("frame_rate", default_value="15.0",
+                   description='frame rate of the sensor; used when calibrate == true only')
+    add_launch_arg("use_ros_time", default_value="True",
+                   description='Flag determining whether to use ROS time in message. Uses sensor time otherwise')
     add_launch_arg("config_file", lidar_config, description="sensor configuration file")
     add_launch_arg("launch_driver", "True", "do launch driver")
-    add_launch_arg("sensor_ip", "192.168.10.166", "device ip address")
     add_launch_arg("base_frame", "base_link", "base frame id")
     add_launch_arg("frame_id", "quanergy", "frame id")
     add_launch_arg("input_frame", LaunchConfiguration("base_frame"), "use for cropbox")

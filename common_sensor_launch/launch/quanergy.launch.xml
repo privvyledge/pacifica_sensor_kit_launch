@@ -38,6 +38,9 @@
   <arg name="lidar_settings_path" default="$(find-pkg-share common_sensor_launch)/config/quanergy_client.xml"/>
   <arg name="topic_name" default="points_raw"/>
   <arg name="ns" default="quanergy"/>
+  <arg name="calibrate" default="False"/>
+  <arg name="frame_rate" default="15.0"/>
+  <arg name="use_ros_time" default="True"/>
   <arg name="return_type" default="all"/>
   <arg name="vehicle_mirror_param_file"/>
   <arg name="use_pointcloud_container" default="false"/>
@@ -52,14 +55,16 @@
     <arg name="host" value="$(var sensor_ip)"/> <!-- Host name or IP of the sensor -->
     <arg name="ns" value="$(var ns)"/>
     <arg name="topic" value="$(var topic_name)"/>
+    <arg name="calibrate" value="$(var calibrate)"/>
+    <arg name="frame_rate" value="$(var frame_rate)"/>
 
-    <arg name="useRosTime" value="True"/>
+    <arg name="use_ros_time" value="$(var use_ros_time)"/>
     <arg name="return_type" value="$(var return_type)"/><!-- return selection
        only applies to M-series
        For 3 returns, 'all' creates an unorganized point cloud
        For single return, explicitly setting a value produces an error if the selection doesn't match the packet
        options: 0, 1, 2, all, or all_separate_topics -->
-    <arg name="lidar_settings_path" value="$(var lidar_settings_path)"/>
+    <arg name="lidar_config_file" value="$(var lidar_settings_path)"/>
 
   </include>
 

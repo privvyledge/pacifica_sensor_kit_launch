@@ -8,7 +8,7 @@
   <arg name="model" default="$(find-pkg-share tier4_vehicle_launch)/urdf/vehicle.xacro"/>
   <arg name="launch_vehicle_interface" default="false" description="launch vehicle interface"/>
   <let name="vehicle_model_pkg" value="$(find-pkg-share $(var vehicle_model)_description)"/>
-  <arg name="config_dir" default="$(find-pkg-share individual_params)/config/$(var vehicle_id)/$(var sensor_model)"/>
+  <!--<arg name="config_dir" default="$(find-pkg-share individual_params)/config/$(var vehicle_id)/$(var sensor_model)"/> -->
 
   <!-- Global parameters -->
   <group scoped="false">
@@ -32,6 +32,7 @@
 
   <!-- Params -->
   <arg name="launch_driver" default="true"/>
+  <arg name="launch_driver_only" default="false"/>
   <arg name="sensor_frame" default="quanergy"/>
   <arg name="base_frame" default="base_link"/>
   <arg name="sensor_ip" default="192.168.10.166"/>
@@ -50,26 +51,26 @@
   <!-- Launch Quanergy driver
   (https://github.com/privvyledge/quanergy_client_ros/blob/feature/ros2/launch/client.launch.py |
   https://github.com/privvyledge/quanergy_client_ros/blob/feature/ros2/readme/ros2.md#testing-build) -->
-<!--  <include file="$(find-pkg-share quanergy_client_ros)/client.launch.py" if="$(var launch_driver)">-->
-<!--    <arg name="frame" value="$(var sensor_frame)"/>-->
-<!--    <arg name="host" value="$(var sensor_ip)"/> &lt;!&ndash; Host name or IP of the sensor &ndash;&gt;-->
-<!--    <arg name="ns" value="$(var ns)"/>-->
-<!--    <arg name="topic" value="$(var topic_name)"/>-->
-<!--    <arg name="calibrate" value="$(var calibrate)"/>-->
-<!--    <arg name="frame_rate" value="$(var frame_rate)"/>-->
+  <include file="$(find-pkg-share quanergy_client_ros)/client.launch.py" if="$(var launch_driver_only)">
+    <arg name="frame" value="$(var sensor_frame)"/>
+    <arg name="host" value="$(var sensor_ip)"/> <!-- Host name or IP of the sensor -->
+    <arg name="ns" value="$(var ns)"/>
+    <arg name="topic" value="$(var topic_name)"/>
+    <arg name="calibrate" value="$(var calibrate)"/>
+    <arg name="frame_rate" value="$(var frame_rate)"/>
 
-<!--    <arg name="use_ros_time" value="$(var use_ros_time)"/>-->
-<!--    <arg name="return_type" value="$(var return_type)"/>&lt;!&ndash; return selection-->
-<!--       only applies to M-series-->
-<!--       For 3 returns, 'all' creates an unorganized point cloud-->
-<!--       For single return, explicitly setting a value produces an error if the selection doesn't match the packet-->
-<!--       options: 0, 1, 2, all, or all_separate_topics &ndash;&gt;-->
-<!--    <arg name="lidar_config_file" value="$(var lidar_settings_path)"/>-->
+    <arg name="use_ros_time" value="$(var use_ros_time)"/>
+    <arg name="return_type" value="$(var return_type)"/><!-- return selection
+       only applies to M-series
+       For 3 returns, 'all' creates an unorganized point cloud
+       For single return, explicitly setting a value produces an error if the selection doesn't match the packet
+       options: 0, 1, 2, all, or all_separate_topics -->
+    <arg name="lidar_config_file" value="$(var lidar_settings_path)"/>
 
-<!--  </include>-->
+  </include>
 
   <!-- Launch pointcloud filter components -->
-  <include file="$(find-pkg-share common_sensor_launch)/launch/quanergy_node_container.launch.py">
+  <include file="$(find-pkg-share common_sensor_launch)/launch/quanergy_node_container.launch.py" unless="$(var launch_driver_only)">
     <arg name="launch_driver" value="$(var launch_driver)"/>
     <arg name="frame_id" value="$(var sensor_frame)"/>
     <arg name="base_frame" value="$(var base_frame)"/>

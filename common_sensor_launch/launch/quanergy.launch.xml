@@ -69,6 +69,7 @@
 <!--    <arg name="frame_id" value="$(var sensor_frame)"/>-->
 <!--    <arg name="base_frame" value="$(var base_frame)"/>-->
 <!--    <arg name="sensor_ip" value="$(var sensor_ip)"/>-->
+<!--    <arg name="return_type" value="$(var return_type)"/>-->
 <!--    <arg name="user_config_path" value="$(var lidar_settings_path)"/>-->
 <!--    <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>-->
 <!--    <arg name="use_intra_process" value="true"/>-->

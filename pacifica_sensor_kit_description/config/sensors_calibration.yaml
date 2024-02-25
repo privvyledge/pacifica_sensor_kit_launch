@@ -6,7 +6,7 @@ base_link:
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
-  yahboom/imu_link:
+  yahboom/yahboom_imu_link:
     x: 0.0
     y: 0.0
     z: 0.0

@@ -33,7 +33,7 @@
   <!-- Params -->
   <arg name="launch_driver" default="true"/>
   <arg name="launch_driver_only" default="false"/>
-  <arg name="sensor_frame" default="quanergy"/>
+  <arg name="sensor_frame" default="quanergy_link"/>
   <arg name="base_frame" default="base_link"/>
   <arg name="sensor_ip" default="192.168.10.166"/>
   <arg name="lidar_settings_path" default="$(find-pkg-share common_sensor_launch)/config/quanergy_client.xml"/>

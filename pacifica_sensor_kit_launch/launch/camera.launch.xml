@@ -24,6 +24,67 @@ Optionally: launch with containers instead
 
   <group>
     <push-ros-namespace namespace="camera"/>
+
+    <group>
+      <push-ros-namespace namespace="azure"/>
+
+      <!-- launch camera driver -->
+      <include file="$(find-pkg-share common_sensor_launch)/launch/azure_kinect_launch.launch.xml">
+        <!-- Camera driver parameters -->
+        <arg name="color_enabled" value="True"/>
+        <arg name="color_resolution" value="1440P"/>
+        <arg name="fps" value="30"/>
+        <arg name="depth_mode" value="NFOV_UNBINNED"/>
+        <arg name="depth_unit" value="32FC1"/>
+        <arg name="color_format" value="bgra" description=""/>
+        <arg name="pointcloud" value="True" description=""/>
+        <arg name="rgb_point_cloud" value="True"/>
+        <arg name="imu_rate_target" value="0"/>
+        <arg name="point_cloud_in_depth_frame" value="False" />
+        <arg name="overwrite_robot_description" value="False"/>
+        <arg name="container" value="" />
+      </include>
+
+      <node pkg="topic_tools" exec="relay" name="tl_camera_info_relay" output="log">
+        <param name="input_topic" value="$(var camera_type)/camera_info"/>
+        <param name="output_topic" value="camera_info"/>
+        <param name="type" value="sensor_msgs/msg/CameraInfo"/>
+        <param name="reliability" value="best_effort"/>
+      </node>
+
+      <node pkg="topic_tools" exec="relay" name="tl_compressed_image_relay" output="log">
+        <param name="input_topic" value="$(var camera_type)/image_raw/compressed"/>
+        <param name="output_topic" value="image_raw/compressed"/>
+        <param name="type" value="sensor_msgs/msg/CompressedImage"/>
+        <param name="reliability" value="best_effort"/>
+      </node>
+
+
+      <!-- Launch using containers -->
+<!--      <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">-->
+<!--        <arg name="mode" value="$(var mode)"/>-->
+<!--        <arg name="input_image" value="$(var image_0)"/>-->
+<!--        <arg name="camera_container_name" value="front_camera_container"/>-->
+<!--        <arg name="yolo_type" value="$(var yolo_type)"/>-->
+<!--        <arg name="label_file" value="$(var label_file)"/>-->
+<!--        <arg name="gpu_id" value="$(var gpu_id)"/>-->
+<!--        <arg name="use_intra_process" value="$(var use_intra_process)"/>-->
+<!--        <arg name="use_multithread" value="$(var use_multithread)"/>-->
+<!--        <arg name="output_topic" value="camera0/rois0"/>-->
+<!--      </include>-->
+<!--      <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">-->
+<!--        <arg name="mode" value="$(var mode)"/>-->
+<!--        <arg name="input_image" value="$(var image_1)"/>-->
+<!--        <arg name="camera_container_name" value="front_camera_container"/>-->
+<!--        <arg name="yolo_type" value="$(var yolo_type)"/>-->
+<!--        <arg name="label_file" value="$(var label_file)"/>-->
+<!--        <arg name="gpu_id" value="$(var gpu_id)"/>-->
+<!--        <arg name="use_intra_process" value="$(var use_intra_process)"/>-->
+<!--        <arg name="use_multithread" value="$(var use_multithread)"/>-->
+<!--        <arg name="output_topic" value="camera1/rois1"/>-->
+<!--      </include>-->
+    </group>
+
     <group>
       <push-ros-namespace namespace="front"/>
 

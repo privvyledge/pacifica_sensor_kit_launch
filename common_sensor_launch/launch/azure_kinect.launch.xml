@@ -1,0 +1,37 @@
+<launch>
+  <arg name="color_enabled" default="True"/>
+  <arg name="color_resolution" default="1440P"/>
+  <arg name="fps" default="30"/>
+  <arg name="depth_mode" default="NFOV_UNBINNED" description="WFOV_UNBINNED, NFOV_UNBINNED"/>
+  <arg name="depth_unit" default="32FC1"/>
+  <arg name="color_format" default="bgra" description=""/>
+  <arg name="pointcloud" default="True" description=""/>
+  <arg name="rgb_point_cloud" default="True"/>
+  <arg name="imu_rate_target" default="0"/>
+  <arg name="point_cloud_in_depth_frame" default="False" description="Whether the RGB pointcloud is rendered in the depth frame (true) or RGB frame (false). Will either match the resolution of the depth camera (true) or the RGB camera (false)."/>
+  <arg name="overwrite_robot_description" default="False"/>
+
+<!--  <include file="$(find-pkg-share azure_kinect_ros_driver)/launch/driver.launch.py">-->
+<!--    <arg name="color_enabled" value="$(var color_enabled)"/>-->
+<!--    <arg name="color_resolution" value="$(var color_resolution)"/>-->
+<!--    <arg name="fps" value="$(var fps)"/>-->
+<!--    <arg name="depth_mode" value="$(var depth_mode)"/>-->
+<!--    <arg name="depth_unit" value="$(var depth_unit)"/>-->
+<!--    <arg name="color_format" value="$(var color_format)"/>-->
+<!--    <arg name="pointcloud" value="$(var pointcloud)"/>-->
+<!--    <arg name="rgb_point_cloud" value="$(var rgb_point_cloud)"/>-->
+<!--    <arg name="imu_rate_target" value="$(var imu_rate_target)"/>-->
+<!--  </include>-->
+
+  <node pkg="azure_kinect_ros_driver" exec="node" name="azure_kinect_camera_node" >
+    <param name="color_enabled" value="$(var color_enabled)"/>
+    <param name="color_resolution" value="$(var color_resolution)"/>
+    <param name="fps" value="$(var fps)"/>
+    <param name="depth_mode" value="$(var depth_mode)"/>
+    <param name="depth_unit" value="$(var depth_unit)"/>
+    <param name="color_format" value="$(var color_format)"/>
+    <param name="pointcloud" value="$(var pointcloud)"/>
+    <param name="rgb_point_cloud" value="$(var rgb_point_cloud)"/>
+    <param name="imu_rate_target" value="$(var imu_rate_target)"/>
+  </node>
+</launch>

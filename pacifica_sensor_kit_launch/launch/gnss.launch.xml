@@ -18,8 +18,7 @@ Todos:
 
     <!-- Switch topic name -->
     <let name="navsatfix_topic_name" value="yahboom/nav_sat_fix" if="$(eval &quot;'$(var gnss_receiver)'=='yahboom'&quot;)"/>
-    <let name="navsatfix_topic_name" value="ublox/nav_sat_fix" if="$(eval &quot;'$(var gnss_receiver)'=='ublox'&quot;)"/>
-    <let name="navsatfix_topic_name" value="septentrio/nav_sat_fix" if="$(eval &quot;'$(var gnss_receiver)'=='septentrio'&quot;)"/>
+<!--    <let name="navsatfix_topic_name" value="aceinna/nav_sat_fix" if="$(eval &quot;'$(var gnss_receiver)'=='aceinna'&quot;)"/>-->
     <let name="orientation_topic_name" value="/autoware_orientation"/>
 
     <!-- Yahboom Driver -->

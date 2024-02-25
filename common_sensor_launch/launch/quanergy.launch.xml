@@ -34,10 +34,10 @@
   <arg name="launch_driver" default="true"/>
   <arg name="sensor_frame" default="quanergy"/>
   <arg name="base_frame" default="base_link"/>
-  <arg name="sensor_ip" default="192.168.1.100"/>
-  <arg name="host_ip" default="192.168.1.50"/>
-  <arg name="publish_freq" default="50.0"/>
-<!--  <arg name="user_config_path" default=""/>-->
+  <arg name="sensor_ip" default="192.168.10.166"/>
+  <arg name="lidar_settings_path" default="$(find-pkg-share common_sensor_launch)/config/quanergy_client.xml"/>
+  <arg name="topic_name" default="points_raw"/>
+  <arg name="ns" default="quanergy"/>
   <arg name="vehicle_mirror_param_file"/>
   <arg name="use_pointcloud_container" default="false"/>
   <arg name="container_name" default="livox_node_container"/>
@@ -49,31 +49,30 @@
   <include file="$(find-pkg-share quanergy_client_ros)/launch/client.launch.py" if="$(var launch_driver)">
     <arg name="frame" value="$(var sensor_frame)"/>
     <arg name="host" value="$(var sensor_ip)"/> <!-- Host name or IP of the sensor -->
-    <arg name="ns" value="quanergy"/>
-    <arg name="topic" value="points"/>
+    <arg name="ns" value="$(var ns)"/>
+    <arg name="topic" value="$(var topic_name)"/>
 
     <arg name="useRosTime" value="True"/>
-    <arg name="return" value="0"/><!-- return selection
+    <arg name="return_type" value="0"/><!-- return selection
        only applies to M-series
        For 3 returns, 'all' creates an unorganized point cloud
        For single return, explicitly setting a value produces an error if the selection doesn't match the packet
        options: 0, 1, 2, all, or all_separate_topics -->
+    <arg name="lidar_settings_path" value="$(var lidar_settings_path)"/>
 
   </include>
 
   <!-- Launch pointcloud filter components -->
-  <include file="$(find-pkg-share common_sensor_launch)/launch/quanergy_node_container.launch.py">
-    <arg name="launch_driver" value="$(var launch_driver)"/>
-    <arg name="frame_id" value="$(var sensor_frame)"/>
-    <arg name="base_frame" value="$(var base_frame)"/>
-    <arg name="sensor_ip" value="$(var sensor_ip)"/>
-    <arg name="host_ip" value="$(var host_ip)"/>
-    <arg name="publish_freq" value="$(var publish_freq)"/>
-<!--    <arg name="user_config_path" value="$(var user_config_path)"/>-->
-    <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>
-    <arg name="use_intra_process" value="true"/>
-    <arg name="use_multithread" value="false"/>
-    <arg name="use_pointcloud_container" value="$(var use_pointcloud_container)"/>
-    <arg name="container_name" value="$(var container_name)"/>
-  </include>
+<!--  <include file="$(find-pkg-share common_sensor_launch)/launch/quanergy_node_container.launch.py">-->
+<!--    <arg name="launch_driver" value="$(var launch_driver)"/>-->
+<!--    <arg name="frame_id" value="$(var sensor_frame)"/>-->
+<!--    <arg name="base_frame" value="$(var base_frame)"/>-->
+<!--    <arg name="sensor_ip" value="$(var sensor_ip)"/>-->
+<!--    <arg name="user_config_path" value="$(var lidar_settings_path)"/>-->
+<!--    <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>-->
+<!--    <arg name="use_intra_process" value="true"/>-->
+<!--    <arg name="use_multithread" value="false"/>-->
+<!--    <arg name="use_pointcloud_container" value="$(var use_pointcloud_container)"/>-->
+<!--    <arg name="container_name" value="$(var container_name)"/>-->
+<!--  </include>-->
 </launch>

@@ -19,7 +19,7 @@
     yaw="${calibration['base_link']['sensor_kit_base_link']['yaw']}"
   />
 
-  <!-- embedded sensors. Todo: add aceinna IMU_link and optionally yahboom imu_link -->
+  <!-- embedded sensors. Todo add aceinna IMU_link and optionally yahboom imu_link -->
 <!--  <xacro:include filename="$(find velodyne_description)/urdf/VLP-16.urdf.xacro"/>-->
 <!--  <xacro:VLP-16 parent="base_link" name="velodyne_rear" topic="velodyne_rear/velodyne_points" hz="10" samples="220" gpu="false">-->
 <!--    <origin-->

@@ -1,4 +1,5 @@
 <launch>
+  <arg name="camera_name" default="azure"/>
   <arg name="color_enabled" default="True"/>
   <arg name="color_resolution" default="1440P"/>
   <arg name="fps" default="30"/>
@@ -10,6 +11,22 @@
   <arg name="imu_rate_target" default="0"/>
   <arg name="point_cloud_in_depth_frame" default="False" description="Whether the RGB pointcloud is rendered in the depth frame (true) or RGB frame (false). Will either match the resolution of the depth camera (true) or the RGB camera (false)."/>
   <arg name="overwrite_robot_description" default="False"/>
+
+  <!-- Image rectification parameters -->
+  <arg name="rectify_image" default="true"/>
+<!--  <arg name="rect_image_topic" default="image_rect" description="image rect topic name"/>-->
+<!--  <arg name="compressed_rect_image_topic" default="image_rect/compressed" description="image rect topic name"/>-->
+  <arg name="queue_size" default="5" description="Size of message queue for synchronizing image and camera_info topics. You may need to raise this if images take significantly longer to travel over the network than camera info" />
+  <arg name="container" default="" description="Name of an existing node container to load launched nodes into. If unset, a new container will be created." />
+
+  <arg name="rgb_image_topic" default="rgb/image_raw" description="/rgb/image_raw or /rgb/image_raw/compressed" />
+  <arg name="depth_image_topic" default="depth/image_raw" description="/depth/image_raw or /depth/image_raw/compressed" />
+  <arg name="ir_image_topic" default="ir/image_raw" description="/ir/image_raw or /ir/image_raw/compressed" />
+  <arg name="depth_to_rgb_image_topic" default="depth_to_rgb/image_raw" description="/depth_to_rgb/image_raw or /depth_to_rgb/image_raw/compressed" />
+  <arg name="rgb_to_depth_image_topic" default="rgb_to_depth/image_raw" description="/rgb_to_depth/image_raw or /rgb_to_depth/image_raw/compressed" />
+  <arg name="output_imu_topic" default="azure_kinect/imu" description="" />
+  <arg name="output_pointcloud_topic" default="azure_kinect/pointcloud" description="" />
+
 
 <!--  <include file="$(find-pkg-share azure_kinect_ros_driver)/launch/driver.launch.py">-->
 <!--    <arg name="color_enabled" value="$(var color_enabled)"/>-->
@@ -23,7 +40,7 @@
 <!--    <arg name="imu_rate_target" value="$(var imu_rate_target)"/>-->
 <!--  </include>-->
 
-  <node pkg="azure_kinect_ros_driver" exec="node" name="azure_kinect_camera_node" >
+  <node pkg="azure_kinect_ros_driver" exec="node" >
     <param name="color_enabled" value="$(var color_enabled)"/>
     <param name="color_resolution" value="$(var color_resolution)"/>
     <param name="fps" value="$(var fps)"/>
@@ -33,5 +50,20 @@
     <param name="pointcloud" value="$(var pointcloud)"/>
     <param name="rgb_point_cloud" value="$(var rgb_point_cloud)"/>
     <param name="imu_rate_target" value="$(var imu_rate_target)"/>
+
+    <remap from="imu" to="$(var output_imu_topic)" />
+    <remap from="points2" to="$(var output_pointcloud_topic)" />
+  </node>
+
+  <!-- Image rectification node -->
+  <node pkg="image_proc" exec="image_proc" output="log">
+    <param name="queue_size" value="$(var queue_size)"/>
+<!--    <param name="reliability" value="best_effort"/>-->
+
+    <remap from="image_raw" to="$(var rgb_image_topic)"/>
+    <remap from="camera_info" to="rgb/camera_info"/>
+    <remap from="image_raw/compressed" to="image_rect/compressed"/>
+    <remap from="image" to="/image_color"/>
+    <remap from="image_mono" to="/image_rect_mono"/>
   </node>
 </launch>

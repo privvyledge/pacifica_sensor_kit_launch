@@ -7,7 +7,7 @@ Todo: remap here instead of using relay later.
   <!-- Camera driver parameters -->
   <arg name="camera_name" default="front"/>
   <arg name="camera_frame" default="camera_link"/>
-  <arg name="camera_info_url" default="$(find-pkg-share common_sensor_launch)/config/$(var camera_name).yaml"/>
+  <arg name="camera_info_url" default="$(find-pkg-share common_sensor_launch)/config/calibration/$(var camera_name)_info.yaml"/>
   <arg name="video_device" default="/dev/video0"/>
   <arg name="pixel_format" default="mjpeg2rgb"/> <!-- mjpeg2rgb for usb_cam, YUYV for v4l2-->
   <arg name="io_method" default="mmap"/>

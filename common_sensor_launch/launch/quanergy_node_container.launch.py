@@ -174,14 +174,17 @@ def launch_setup(context, *args, **kwargs):
                 # "--calibrate", LaunchConfiguration("calibrate"),
                 "--frame-rate", LaunchConfiguration("frame_rate"),
                 "--return", LaunchConfiguration("return_type")
-        ]
+        ],
+        # remappings=[
+        #     (LaunchConfiguration('topic'), "pointcloud_raw"),
+        # ]
     )
 
     target_container = (
         container
         if UnlessCondition(LaunchConfiguration("use_pointcloud_container")).evaluate(context)
         else LaunchConfiguration("container_name")
-    )
+    )  # to load the driver in the container
 
     # driver_component_loader = LoadComposableNodes(
     #     composable_node_descriptions=[driver_component],
@@ -190,7 +193,7 @@ def launch_setup(context, *args, **kwargs):
     # )
 
     launch_data = [container, component_loader]
-    launch_data.append(target_container)
+    # launch_data.append(target_container)
     launch_data.append(driver_node)
     return launch_data
 

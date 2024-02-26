@@ -1,32 +1,32 @@
 <launch>
   <!-- For testing purposes only. This block should be commented out -->
 
-  <arg name="vehicle_model" default="pacifica_vehicle" description="vehicle model name"/>
-  <arg name="vehicle_id" default="default" description="vehicle id"/>
-  <arg name="vehicle_mirror_param_file" default="$(find-pkg-share $(var vehicle_model)_description)/config/mirror.param.yaml"/>
-  <arg name="sensor_model" default="pacifica_sensor_kit" description="sensor model name"/>
-  <arg name="model" default="$(find-pkg-share tier4_vehicle_launch)/urdf/vehicle.xacro"/>
-  <arg name="launch_vehicle_interface" default="false" description="launch vehicle interface"/>
-  <let name="vehicle_model_pkg" value="$(find-pkg-share $(var vehicle_model)_description)"/>
-  <!--<arg name="config_dir" default="$(find-pkg-share individual_params)/config/$(var vehicle_id)/$(var sensor_model)"/> -->
+<!--  <arg name="vehicle_model" default="pacifica_vehicle" description="vehicle model name"/>-->
+<!--  <arg name="vehicle_id" default="default" description="vehicle id"/>-->
+<!--  <arg name="vehicle_mirror_param_file" default="$(find-pkg-share $(var vehicle_model)_description)/config/mirror.param.yaml"/>-->
+<!--  <arg name="sensor_model" default="pacifica_sensor_kit" description="sensor model name"/>-->
+<!--  <arg name="model" default="$(find-pkg-share tier4_vehicle_launch)/urdf/vehicle.xacro"/>-->
+<!--  <arg name="launch_vehicle_interface" default="false" description="launch vehicle interface"/>-->
+<!--  <let name="vehicle_model_pkg" value="$(find-pkg-share $(var vehicle_model)_description)"/>-->
+<!--  &lt;!&ndash;<arg name="config_dir" default="$(find-pkg-share individual_params)/config/$(var vehicle_id)/$(var sensor_model)"/> &ndash;&gt;-->
 
-  <!-- Global parameters -->
-  <group scoped="false">
-    <include file="$(find-pkg-share global_parameter_loader)/launch/global_params.launch.py">
-      <arg name="use_sim_time" value="false"/>
-      <arg name="vehicle_model" value="$(var vehicle_model)"/>
-    </include>
-  </group>
+<!--  &lt;!&ndash; Global parameters &ndash;&gt;-->
+<!--  <group scoped="false">-->
+<!--    <include file="$(find-pkg-share global_parameter_loader)/launch/global_params.launch.py">-->
+<!--      <arg name="use_sim_time" value="false"/>-->
+<!--      <arg name="vehicle_model" value="$(var vehicle_model)"/>-->
+<!--    </include>-->
+<!--  </group>-->
 
-  <include file="$(find-pkg-share tier4_vehicle_launch)/launch/vehicle.launch.xml">
-    <arg name="vehicle_model" value="$(var vehicle_model)"/>
-    <arg name="sensor_model" value="$(var sensor_model)"/>
-    <arg name="launch_vehicle_interface" value="$(var launch_vehicle_interface)"/>
-  </include>
+<!--  <include file="$(find-pkg-share tier4_vehicle_launch)/launch/vehicle.launch.xml">-->
+<!--    <arg name="vehicle_model" value="$(var vehicle_model)"/>-->
+<!--    <arg name="sensor_model" value="$(var sensor_model)"/>-->
+<!--    <arg name="launch_vehicle_interface" value="$(var launch_vehicle_interface)"/>-->
+<!--  </include>-->
 
-  <node name="robot_state_publisher" pkg="robot_state_publisher" exec="robot_state_publisher">
-    <param name="robot_description" value="$(command 'xacro $(var model) vehicle_model:=$(var vehicle_model) sensor_model:=$(var sensor_model)')"/>
-  </node>
+<!--  <node name="robot_state_publisher" pkg="robot_state_publisher" exec="robot_state_publisher">-->
+<!--    <param name="robot_description" value="$(command 'xacro $(var model) vehicle_model:=$(var vehicle_model) sensor_model:=$(var sensor_model)')"/>-->
+<!--  </node>-->
 
   <!--   End testing block -->
 

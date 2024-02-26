@@ -43,7 +43,7 @@
       <include file="$(find-pkg-share common_sensor_launch)/launch/imu_corrector.launch.xml">
         <arg name="autoware_launch" value="$(var autoware_launch)"/>
         <arg name="imu1_driver" value="$(var imu1_driver)"/>
-        <arg name="imu_topic" value="imu"/>
+        <arg name="imu_topic" value="azure_kinect/imu"/>
         <arg name="filter_imu" value="True"/>
         <arg name="use_mag" value="false"/>
         <arg name="remove_gravity_vector" value="false"/>

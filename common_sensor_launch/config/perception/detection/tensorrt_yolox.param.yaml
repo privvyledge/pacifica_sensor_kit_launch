@@ -1,0 +1,17 @@
+/**:
+    ros__parameters:
+      score_threshold: 0.3
+      nms_threshold: 0.7
+#      model_path: ""
+#      label_path: ""
+#      model_name: "yolox-tiny"
+      precision: "fp16"
+      build_only: false
+      calibration_algorithm: "MinMax"  # Entropy, MinMax
+      dla_core_id: -1
+      quantize_first_layer: false
+      quantize_last_layer: false
+      profile_per_layer: False
+      clip_value: 0.0  # 0.0, 6.0
+      preprocess_on_gpu: True
+      calibration_image_list_path: ""

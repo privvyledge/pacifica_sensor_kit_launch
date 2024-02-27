@@ -4,8 +4,8 @@
       framerate: 30.0
       io_method: "mmap"
       frame_id: "camera"
-      pixel_format: "mjpeg2rgb"  # see usb_cam/supported_formats for list of supported formats
-      av_device_format: "YUV422P"
+      pixel_format: "yuyv2rgb"  # yuyv, see usb_cam/supported_formats for list of supported formats
+      av_device_format: "YUV422P"  # color_format
       image_width: 1920
       image_height: 1080
       camera_name: "monocular_camera"

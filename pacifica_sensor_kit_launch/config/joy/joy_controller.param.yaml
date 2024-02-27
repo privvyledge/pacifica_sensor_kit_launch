@@ -1,0 +1,17 @@
+/**:
+  ros__parameters:
+    # https://autowarefoundation.github.io/autoware.universe/latest/control/joy_controller/#ds4-joystick-key-map
+    update_rate: 10.0
+    accel_ratio: 0.5
+    brake_ratio: 0.8
+    steer_ratio: 1.0
+    steering_angle_velocity: 1.0
+    accel_sensitivity: 1.0
+    brake_sensitivity: 1.0
+    raw_control: false  # skip input odometry if true
+    control_command:
+      raw_control: False  # skip input odometry if true
+      velocity_gain: 0.0
+      max_forward_velocity: 2.5
+      max_backward_velocity: 2.5
+      backward_accel_ratio: 1.0

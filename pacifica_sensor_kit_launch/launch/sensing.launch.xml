@@ -8,7 +8,7 @@
 
   <group>
     <!-- LiDAR Driver -->
-    <include file="$(find-pkg-share sample_sensor_kit_launch)/launch/lidar.launch.xml">
+    <include file="$(find-pkg-share pacifica_sensor_kit_launch)/launch/lidar.launch.xml">
       <arg name="launch_driver" value="$(var launch_driver)"/>
       <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>
       <arg name="use_pointcloud_container" value="$(var use_pointcloud_container)"/>
@@ -16,19 +16,19 @@
     </include>
 
     <!-- Camera Driver -->
-    <include file="$(find-pkg-share sample_sensor_kit_launch)/launch/camera.launch.xml">
+    <include file="$(find-pkg-share pacifica_sensor_kit_launch)/launch/camera.launch.xml">
       <arg name="launch_driver" value="$(var launch_driver)" />
     </include>
 
     <!-- GNSS Driver.
     Note: for some reason, the GNSS node has to be launched first in this file otherwise it tries to use the IMU port and settings. -->
-    <include file="$(find-pkg-share sample_sensor_kit_launch)/launch/gnss.launch.xml">
+    <include file="$(find-pkg-share pacifica_sensor_kit_launch)/launch/gnss.launch.xml">
       <arg name="autoware_launch" value="$(var autoware_launch)"/>
       <arg name="launch_driver" value="$(var launch_driver)"/>
     </include>
 
     <!-- IMU Driver -->
-    <include file="$(find-pkg-share sample_sensor_kit_launch)/launch/imu.launch.xml">
+    <include file="$(find-pkg-share pacifica_sensor_kit_launch)/launch/imu.launch.xml">
       <arg name="autoware_launch" value="$(var autoware_launch)"/>
       <arg name="launch_driver" value="$(var launch_driver)"/>
     </include>
@@ -37,6 +37,17 @@
     <include file="$(find-pkg-share vehicle_velocity_converter)/launch/vehicle_velocity_converter.launch.xml">
       <arg name="input_vehicle_velocity_topic" value="/vehicle/status/velocity_status"/>
       <arg name="output_twist_with_covariance" value="/sensing/vehicle_velocity_converter/twist_with_covariance"/>
+      <arg name="config_file" value="$(find-pkg-share vehicle_velocity_converter)/config/vehicle_velocity_converter.param.yaml"/>
     </include>
+
+    <!-- Joystick control node -->
+    <include file="$(find-pkg-share f1tenth_sensor_kit_launch)/launch/joy_controller.launch.xml">
+      <arg name="launch_driver" value="True"/>
+      <arg name="config_file" value="$(find-pkg-share f1tenth_sensor_kit_launch)/config/joy/joy_controller.param.yaml"/>
+      <arg name="input_joy" value="/sensing/joy"/>
+<!--      <arg name="joy_type" value="DS4"/>-->
+      <arg name="input_odometry" value="/localization/kinematic_state" />
+    </include>
+
   </group>
 </launch>

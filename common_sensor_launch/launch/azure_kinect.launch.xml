@@ -47,7 +47,7 @@
     <param name="depth_mode" value="$(var depth_mode)"/>
     <param name="depth_unit" value="$(var depth_unit)"/>
     <param name="color_format" value="$(var color_format)"/>
-    <param name="pointcloud" value="$(var pointcloud)"/>
+    <param name="point_cloud" value="$(var pointcloud)"/>
     <param name="rgb_point_cloud" value="$(var rgb_point_cloud)"/>
     <param name="imu_rate_target" value="$(var imu_rate_target)"/>
 

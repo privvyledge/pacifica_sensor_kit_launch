@@ -1,0 +1,13 @@
+/**:
+  ros__parameters:
+    angular_velocity_offset_x: 0.0    # [rad/s]
+    angular_velocity_offset_y: 0.0    # [rad/s]
+    angular_velocity_offset_z: 0.0    # [rad/s]
+    angular_velocity_stddev_xx: 0.03  # [rad/s]
+    angular_velocity_stddev_yy: 0.03  # [rad/s]
+    angular_velocity_stddev_zz: 0.03  # [rad/s]
+    acceleration_stddev: 0.03  # [m/s^2]
+
+    gyro_bias_threshold: 0.0  # [rad/s]
+    timer_callback_interval_sec: 0.005  # [sec]
+    straight_motion_ang_vel_upper_limit: 0.0  # [rad/s]. upper limit of yaw angular velocity, beyond which motion is not considered straight

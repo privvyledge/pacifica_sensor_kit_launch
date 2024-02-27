@@ -12,6 +12,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.actions import SetLaunchConfiguration
 from launch.conditions import IfCondition
 from launch.conditions import UnlessCondition
+from launch_ros.actions import Node
 from launch.substitutions.launch_configuration import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.actions import LoadComposableNodes
@@ -28,13 +29,13 @@ def launch_setup(context, *args, **kwargs):
     output_topic = LaunchConfiguration("output_topic").perform(context)
 
     image_name = LaunchConfiguration("input_image").perform(context)
-    image_rectification_topic = 'image_raw'  # image_raw, image_color
+    image_rectification_topic = 'rgb/image_raw'  # image_raw, image_color
     camera_container_name = LaunchConfiguration("camera_container_name").perform(context)
     camera_namespace = LaunchConfiguration("camera_name").perform(context) + "/" + image_name
     input_camera_info = LaunchConfiguration("camera_info").perform(context)
 
     # tensorrt params
-    yolo_image_topic = 'image_rect'  # image_rect, image_color, image_raw
+    yolo_image_topic = 'rgb/image_rect'  # image_rect, image_color, image_raw
     precision = LaunchConfiguration("precision").perform(context)
     data_path = PathJoinSubstitution([EnvironmentVariable('HOME'), 'autoware_data'])
     model_path = PathJoinSubstitution([data_path, 'tensorrt_yolox'])
@@ -49,36 +50,29 @@ def launch_setup(context, *args, **kwargs):
 
     nodes = []
 
-    camera_driver_node = ComposableNode(
-                package="usb_cam",
-                plugin="usb_cam::UsbCamNode",
+    camera_driver_node = Node(
+                package="azure_kinect_ros_driver",
+                executable='node',
                 name="usb_cam_node",
+                output='screen',
                 parameters=[{
-                    "camera_name": LaunchConfiguration('camera_name'),  # camera_yaml_param['camera_name']
-                    "video_device": LaunchConfiguration('video_device'),  # camera_yaml_param['camera_name']
-                    "framerate": LaunchConfiguration('framerate'),  # camera_yaml_param['frame_rate']
-                    "io_method": camera_yaml_param['io_method'],
-                    "frame_id": LaunchConfiguration('frame_id'),  # camera_yaml_param['frame_id']
-                    "pixel_format": camera_yaml_param['pixel_format'],
-                    "camera_info_url": LaunchConfiguration('camera_info_url'),  # camera_yaml_param['camera_info_url']
-                    "av_device_format": camera_yaml_param['av_device_format'],
-                    "image_width": camera_yaml_param['image_width'],
-                    "image_height": camera_yaml_param['image_height'],
-                    "brightness": camera_yaml_param['brightness'],
-                    "contrast": camera_yaml_param['contrast'],
-                    "saturation": camera_yaml_param['saturation'],
-                    "sharpness": camera_yaml_param['sharpness'],
-                    "gain": camera_yaml_param['gain'],
-                    "auto_white_balance": camera_yaml_param['auto_white_balance'],
-                    "white_balance": camera_yaml_param['white_balance'],
-                    "autoexposure": camera_yaml_param['autoexposure'],
-                    "autofocus": camera_yaml_param['autofocus'],
-                    "focus": camera_yaml_param['focus'],
+                    "color_enabled": LaunchConfiguration('color_enabled'),
+                    "depth_enabled": LaunchConfiguration('depth_enabled'),
+                    "color_resolution": LaunchConfiguration('color_resolution'),
+                    "fps": LaunchConfiguration('fps'),
+                    "depth_mode": LaunchConfiguration('depth_mode'),
+                    "depth_unit": LaunchConfiguration('depth_unit'),
+                    "color_format": LaunchConfiguration('color_format'),
+                    "point_cloud": LaunchConfiguration('point_cloud'),
+                    "rgb_point_cloud": LaunchConfiguration('rgb_point_cloud'),
+                    "imu_rate_target": LaunchConfiguration('imu_rate_target'),
+                    "image_width": LaunchConfiguration('image_width'),
+                    "image_height": LaunchConfiguration('image_height'),
+                    "point_cloud_in_depth_frame": LaunchConfiguration('point_cloud_in_depth_frame'),
                 }],
                 remappings=[
-                ],
-                extra_arguments=[
-                    {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
+                    # ("imu", "azure_kinect/imu"),
+                    # ("points2", "azure_kinect/pointcloud"),
                 ],
             )
 
@@ -172,7 +166,6 @@ def launch_setup(context, *args, **kwargs):
                 ],
             )
 
-    nodes.append(camera_driver_node)
     nodes.append(image_debayer_node)
     nodes.append(color_image_rectification_node)
     # nodes.append(monochrome_image_rectification_node)
@@ -196,6 +189,7 @@ def launch_setup(context, *args, **kwargs):
     )
 
     launch_data = [container, component_loader]
+    launch_data.append(camera_driver_node)
     return launch_data
 
 
@@ -209,13 +203,30 @@ def generate_launch_description():
         )
 
     # Image arguments
-    add_launch_arg("camera_name", "", description="camera name")
-    add_launch_arg("video_device", "", description="video driver path")
-    add_launch_arg("framerate", "", description="fps")
-    add_launch_arg("frame_id", "", description="image_frame_id")
-    add_launch_arg("input_image", "", description="input camera topic")
-    add_launch_arg("camera_info", "", description="input camera info topic")
-    add_launch_arg("camera_info_url", "", description="input camera info file")
+    add_launch_arg("camera_name", "azure_kinect", description="camera name")
+    add_launch_arg("color_enabled", "True", description="Enable or disable the color camera")
+    add_launch_arg("depth_enabled", "True", description="Enable or disable the depth camera")
+    add_launch_arg("color_resolution", "1440P",
+                   description="Resolution at which to run the color camera. "
+                               "Valid options: 720P, 1080P, 1440P, 1536P, 2160P, 3072P")
+    add_launch_arg("fps", "30", description="FPS to run both cameras at. Valid options are 5, 15, and 30")
+    add_launch_arg("depth_mode", "NFOV_UNBINNED",
+                   description="Set the depth camera mode, which affects FOV, depth range, and camera resolution. "
+                               "NFOV_UNBINNED, NFOV_2X2BINNED, WFOV_UNBINNED, WFOV_2X2BINNED, and PASSIVE_IR")
+    add_launch_arg("depth_unit", "16UC1", description='Depth distance units. '
+                                                      'Options are: "32FC1" (32 bit float metre) or '
+                                                      '"16UC1" (16 bit integer millimetre)')
+    add_launch_arg("color_format", "bgra", description="The format of RGB camera. Valid options: bgra, jpeg")
+    add_launch_arg("point_cloud", "True", description="Generate a point cloud from depth data. Requires depth_enabled")
+    add_launch_arg("rgb_point_cloud", "True", description="Colorize the point cloud using the RBG camera. "
+                                                          "Requires color_enabled and depth_enabled")
+    add_launch_arg("imu_rate_target", "0", description="Desired output rate of IMU messages. "
+                                                       "Set to 0 (default) for full rate (1.6 kHz).")
+    add_launch_arg("point_cloud_in_depth_frame", "False",
+                   description="Whether the RGB pointcloud is rendered in the depth frame (true) or RGB frame (false). "
+                               "Will either match the resolution of the depth camera (true) or the RGB camera (false).")
+    add_launch_arg("input_image", "rgb/image_raw", description="input camera topic")
+    add_launch_arg("camera_info", "rgb/camera_info", description="input camera info topic")
     add_launch_arg("use_decompress", "False", description="whether to decompress the raw image")
 
     # Yolo Arguments

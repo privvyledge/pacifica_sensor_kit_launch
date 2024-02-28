@@ -27,10 +27,11 @@ def launch_setup(context, *args, **kwargs):
 
     output_topic = LaunchConfiguration("output_topic").perform(context)
 
+    camera_name = LaunchConfiguration("camera_name").perform(context)
     image_name = LaunchConfiguration("input_image").perform(context)
     image_rectification_topic = 'image_raw'  # image_raw, image_color
     camera_container_name = LaunchConfiguration("camera_container_name").perform(context)
-    camera_namespace = LaunchConfiguration("camera_name").perform(context) + "/" + image_name
+    camera_namespace = camera_name + "/" + image_name
     input_camera_info = LaunchConfiguration("camera_info").perform(context)
 
     # tensorrt params
@@ -52,7 +53,7 @@ def launch_setup(context, *args, **kwargs):
     camera_driver_node = ComposableNode(
                 package="usb_cam",
                 plugin="usb_cam::UsbCamNode",
-                name="usb_cam_node",
+                name=camera_name + "_usb_cam_node",
                 parameters=[{
                     "camera_name": LaunchConfiguration('camera_name'),  # camera_yaml_param['camera_name']
                     "video_device": LaunchConfiguration('video_device'),  # camera_yaml_param['camera_name']
@@ -85,7 +86,7 @@ def launch_setup(context, *args, **kwargs):
     image_debayer_node = ComposableNode(
                     package='image_proc',
                     plugin='image_proc::DebayerNode',
-                    name='debayer_node',
+                    name=camera_name + '_debayer_node',
                     # Remap subscribers and publishers
                     remappings=[
                         ('image_raw', image_rectification_topic),  # input: ~/image_raw (camera_namespace + "/image_raw")
@@ -98,7 +99,7 @@ def launch_setup(context, *args, **kwargs):
                     # namespace="camera",
                     package='image_proc',
                     plugin='image_proc::RectifyNode',
-                    name='rectify_camera_image_node',
+                    name=camera_name + '_rectify_camera_image_node',
                     # Remap subscribers and publishers
                     remappings=[
                         ('image', image_rectification_topic),  # input (camera_namespace + "/image_raw")
@@ -114,7 +115,7 @@ def launch_setup(context, *args, **kwargs):
                     namespace="camera",
                     package='image_proc',
                     plugin='image_proc::RectifyNode',
-                    name='rectify_camera_monochrome_image_node',
+                    name=camera_name + '_rectify_camera_monochrome_image_node',
                     # Remap subscribers and publishers
                     remappings=[
                         ('image', "image_mono"),  # input camera_namespace + "/image_mono"
@@ -129,7 +130,7 @@ def launch_setup(context, *args, **kwargs):
     image_decompressor_node = ComposableNode(
                     package='image_transport_decompressor',
                     plugin='image_preprocessor::ImageTransportDecompressor',
-                    name='decompressor_node',
+                    name=camera_name + '_decompressor_node',
                     condition=IfCondition(LaunchConfiguration("use_decompress")),
                     # Remap subscribers and publishers
                     remappings=[
@@ -142,7 +143,7 @@ def launch_setup(context, *args, **kwargs):
                 namespace='/perception/object_recognition/detection',
                 package="tensorrt_yolox",
                 plugin="tensorrt_yolox::TrtYoloXNode",
-                name="tensorrt_yolox",
+                name=camera_name + "_tensorrt_yolox",
                 parameters=[
                     {
                         "score_threshold": tensorrt_yaml_param['score_threshold'],

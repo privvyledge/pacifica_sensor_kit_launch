@@ -42,8 +42,8 @@ Optionally: launch with containers instead
   <!--        <arg name="fps" value="30"/>-->
   <!--        <arg name="depth_mode" value="NFOV_UNBINNED"/>-->
   <!--        <arg name="depth_unit" value="32FC1"/>-->
-  <!--        <arg name="color_format" value="bgra" description=""/>-->
-  <!--        <arg name="pointcloud" value="True" description=""/>-->
+  <!--        <arg name="color_format" value="bgra"/>-->
+  <!--        <arg name="pointcloud" value="True"/>-->
   <!--        <arg name="rgb_point_cloud" value="True"/>-->
   <!--        <arg name="imu_rate_target" value="0"/>-->
   <!--        <arg name="point_cloud_in_depth_frame" value="False" />-->
@@ -60,8 +60,8 @@ Optionally: launch with containers instead
           <arg name="depth_enabled" value="True"/>
           <arg name="depth_mode" value="NFOV_UNBINNED"/>
           <arg name="depth_unit" value="16UC1"/>
-          <arg name="color_format" value="bgra" description=""/>
-          <arg name="point_cloud" value="True" description=""/>
+          <arg name="color_format" value="bgra"/>
+          <arg name="point_cloud" value="True"/>
           <arg name="rgb_point_cloud" value="True"/>
           <arg name="imu_rate_target" value="0"/>
           <arg name="point_cloud_in_depth_frame" value="False" />
@@ -77,7 +77,7 @@ Optionally: launch with containers instead
           <arg name="label_file" value="$(var label_file)"/>
           <arg name="use_intra_process" value="$(var use_intra_process)"/>
           <arg name="use_multithread" value="$(var use_multithread)"/>
-          <arg name="output_topic" value="camera0/rois0"/>
+          <arg name="output_topic" value="azure_kinect/rois0"/>
         </include>
       </group>
 
@@ -96,14 +96,14 @@ Optionally: launch with containers instead
   <!--        <arg name="output_encoding" value="bgr8"/> &lt;!&ndash; For v4l2 node &ndash;&gt;-->
   <!--        <arg name="image_width" value="1920"/>-->
   <!--        <arg name="image_height" value="1080"/>-->
-  <!--        <arg name="raw_image_topic" value="image_raw" description="image raw topic name"/>-->
-  <!--        <arg name="compressed_image_topic" value="image_raw/compressed" description="image raw topic name"/>-->
-  <!--        <arg name="camera_info_topic" value="camera_info" description="image raw topic name"/>-->
+  <!--        <arg name="raw_image_topic" value="image_raw"/>-->
+  <!--        <arg name="compressed_image_topic" value="image_raw/compressed"/>-->
+  <!--        <arg name="camera_info_topic" value="camera_info"/>-->
 
   <!--        &lt;!&ndash; Image rectification parameters &ndash;&gt;-->
   <!--        <arg name="rectify_image" value="true"/>-->
-  <!--      &lt;!&ndash;  <arg name="rect_image_topic" value="image_rect" description="image rect topic name"/>&ndash;&gt;-->
-  <!--      &lt;!&ndash;  <arg name="compressed_rect_image_topic" value="image_rect/compressed" description="image rect topic name"/>&ndash;&gt;-->
+  <!--      &lt;!&ndash;  <arg name="rect_image_topic" value="image_rect"/>&ndash;&gt;-->
+  <!--      &lt;!&ndash;  <arg name="compressed_rect_image_topic" value="image_rect/compressed"/>&ndash;&gt;-->
   <!--        <arg name="queue_size" value="5" />-->
   <!--        <arg name="container" value="" />-->
   <!--      </include>-->
@@ -116,7 +116,7 @@ Optionally: launch with containers instead
           <arg name="video_device" value="/dev/video0"/>
           <arg name="framerate" value="30.0"/>
           <arg name="camera_info" value="camera_info"/>
-          <arg name="camera_info_url" value="$(find-pkg-share common_sensor_launch)/config/calibration/$(var camera_name)_info.yaml"/>
+          <arg name="camera_info_url" value="$(find-pkg-share common_sensor_launch)/config/calibration/camera0_info.yaml"/>
           <arg name="use_decompress" value="False"/>
 
           <arg name="use_camera_container" value="$(var use_camera_container)"/>
@@ -145,18 +145,18 @@ Optionally: launch with containers instead
         <arg name="video_device" value="/dev/video2"/>
         <arg name="framerate" value="30.0"/>
         <arg name="camera_info" value="camera_info"/>
-        <arg name="camera_info_url" value="$(find-pkg-share common_sensor_launch)/config/calibration/$(var camera_name)_info.yaml"/>
+        <arg name="camera_info_url" value="$(find-pkg-share common_sensor_launch)/config/calibration/camera1_info.yaml"/>
         <arg name="use_decompress" value="False"/>
 
         <arg name="use_camera_container" value="$(var use_camera_container)"/>
-        <arg name="camera_container_name" value="front_camera_container"/>
+        <arg name="camera_container_name" value="right_camera_container"/>
 
         <arg name="precision" value="fp16"/>
         <arg name="model_name" value="yolox-tiny"/>
         <arg name="label_file" value="$(var label_file)"/>
         <arg name="use_intra_process" value="$(var use_intra_process)"/>
         <arg name="use_multithread" value="$(var use_multithread)"/>
-        <arg name="output_topic" value="$(var camera_name)/rois0"/>
+        <arg name="output_topic" value="camera1/rois0"/>
       </include>
 
     </group>

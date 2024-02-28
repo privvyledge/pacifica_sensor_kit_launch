@@ -41,7 +41,7 @@
     </include>
 
     <!-- Joystick control node -->
-    <include file="$(find-pkg-share f1tenth_sensor_kit_launch)/launch/joy_controller.launch.xml">
+    <include file="$(find-pkg-share pacifica_sensor_kit_launch)/launch/joy_controller.launch.xml">
       <arg name="launch_driver" value="True"/>
       <arg name="config_file" value="$(find-pkg-share f1tenth_sensor_kit_launch)/config/joy/joy_controller.param.yaml"/>
       <arg name="input_joy" value="/sensing/joy"/>

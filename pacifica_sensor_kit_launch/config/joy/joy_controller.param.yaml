@@ -1,17 +1,18 @@
 /**:
   ros__parameters:
     # https://autowarefoundation.github.io/autoware.universe/latest/control/joy_controller/#ds4-joystick-key-map
-    update_rate: 10.0
-    accel_ratio: 0.5
-    brake_ratio: 0.8
-    steer_ratio: 1.0
-    steering_angle_velocity: 1.0
-    accel_sensitivity: 1.0
-    brake_sensitivity: 1.0
+    joy_type: "DS4"  # joy controller type
+    update_rate: 30.0  # update rate to publish control commands
+    accel_ratio: 3.0  # ratio to calculate acceleration (commanded acceleration is ratio * operation)
+    brake_ratio: 5.0  # ratio to calculate deceleration (commanded acceleration is -ratio * operation)
+    steer_ratio: 0.5  # ratio to calculate deceleration (commanded steer is ratio * operation)
+    steering_angle_velocity: 0.1  # steering angle velocity for operation
+    accel_sensitivity: 1.0  # sensitivity to calculate acceleration for external API (commanded acceleration is pow(operation, 1 / sensitivity))
+    brake_sensitivity: 1.0  #  	sensitivity to calculate deceleration for external API (commanded acceleration is pow(operation, 1 / sensitivity))
     raw_control: false  # skip input odometry if true
     control_command:
       raw_control: False  # skip input odometry if true
-      velocity_gain: 0.0
-      max_forward_velocity: 2.5
-      max_backward_velocity: 2.5
-      backward_accel_ratio: 1.0
+      velocity_gain: 3.0  # ratio to calculate velocity by acceleration
+      max_forward_velocity: 20.0  # absolute max velocity to go forward
+      max_backward_velocity: 3.0  # absolute max velocity to go backward
+      backward_accel_ratio: 1.0  # ratio to calculate deceleration (commanded acceleration is -ratio * operation)

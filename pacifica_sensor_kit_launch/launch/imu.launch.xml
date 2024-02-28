@@ -23,7 +23,7 @@
 
       <include file="$(find-pkg-share common_sensor_launch)/launch/imu_corrector.launch.xml">
         <arg name="autoware_launch" value="$(var autoware_launch)"/>
-        <arg name="imu0_driver" value="$(var imu0_driver)"/>
+        <arg name="imu_driver" value="$(var imu0_driver)"/>
   <!--      <arg name="imu_topic" value="imu/data_raw"/>-->
         <arg name="filter_imu" value="false"/>
         <arg name="use_mag" value="false"/>
@@ -42,7 +42,7 @@
 
       <include file="$(find-pkg-share common_sensor_launch)/launch/imu_corrector.launch.xml">
         <arg name="autoware_launch" value="$(var autoware_launch)"/>
-        <arg name="imu1_driver" value="$(var imu1_driver)"/>
+        <arg name="imu_driver" value="$(var imu1_driver)"/>
         <arg name="imu_topic" value="camera/front/azure_kinect/imu"/>
         <arg name="filter_imu" value="True"/>
         <arg name="use_mag" value="false"/>

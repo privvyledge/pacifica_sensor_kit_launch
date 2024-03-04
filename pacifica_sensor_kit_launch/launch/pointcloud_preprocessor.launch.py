@@ -23,9 +23,12 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.actions import LoadComposableNodes
 from launch_ros.descriptions import ComposableNode
+from launch.substitutions import PathJoinSubstitution
+from launch_ros.substitutions import FindPackagePrefix
 
 
 def launch_setup(context, *args, **kwargs):
+    nodes = []
     # set concat filter as a component
     concat_component = ComposableNode(
         package="pointcloud_preprocessor",
@@ -49,6 +52,21 @@ def launch_setup(context, *args, **kwargs):
         extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
     )
 
+    pointcloud_to_laserscan_node = ComposableNode(
+            package="pointcloud_to_laserscan",
+            plugin="pointcloud_to_laserscan::PointCloudToLaserScanNode",
+            name="stereo_pointcloud_to_laserscan",
+            remappings=[
+                ("cloud_in", "stereo/points_raw"),
+                ("scan", "stereo/scan"),
+            ],
+            parameters=[LaunchConfiguration('pointcloud_to_laserscan_config_file')],
+            # extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+    )
+
+    nodes.append(concat_component)
+    nodes.append(pointcloud_to_laserscan_node)
+
     # set container to run all required components in the same process
     container = ComposableNodeContainer(
         name=LaunchConfiguration("pointcloud_container_name"),
@@ -68,7 +86,7 @@ def launch_setup(context, *args, **kwargs):
 
     # load concat or passthrough filter
     concat_loader = LoadComposableNodes(
-        composable_node_descriptions=[concat_component],
+        composable_node_descriptions=nodes,
         target_container=target_container,
         condition=IfCondition(LaunchConfiguration("use_concat_filter")),
     )
@@ -77,13 +95,19 @@ def launch_setup(context, *args, **kwargs):
 
 
 def generate_launch_description():
+    pointcloud_to_laserscan_config = PathJoinSubstitution(
+            [FindPackagePrefix('common_sensor_launch'), 'config', 'pointcloud_to_laserscan.param.yaml'])
     launch_arguments = []
 
-    def add_launch_arg(name: str, default_value=None):
-        launch_arguments.append(DeclareLaunchArgument(name, default_value=default_value))
+    def add_launch_arg(name: str, default_value=None, description=None):
+        launch_arguments.append(DeclareLaunchArgument(name, default_value=default_value, description=description))
 
     add_launch_arg("base_frame", "base_link")
     add_launch_arg("use_concat_filter", "False")
+
+    # PointCloud to LaserScan parameters
+    add_launch_arg("pointcloud_to_laserscan_config_file", default_value=pointcloud_to_laserscan_config,
+                   description='Path to config file for converting pointclouds to laserscans.')
 
     add_launch_arg("use_multithread", "False")
     add_launch_arg("use_intra_process", "False")

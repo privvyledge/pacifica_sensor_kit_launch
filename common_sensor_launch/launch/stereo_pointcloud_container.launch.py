@@ -1,24 +1,29 @@
 """
+Steps:
+    * (optional) start camera drivers
+    * (optional) join active container to get rectified image topics
+    *
+
 Todo:
-    * pass configuration options as parameters
+    * Setup nvidia stereo image proc
 """
 
-import os
-
-from ament_index_python.packages import get_package_share_directory
 import launch
 from launch.actions import DeclareLaunchArgument
-from launch.actions import OpaqueFunction
 from launch.actions import SetLaunchConfiguration
 from launch.conditions import IfCondition
 from launch.conditions import UnlessCondition
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions.launch_configuration import LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.actions import LoadComposableNodes
 from launch_ros.descriptions import ComposableNode
+from launch_ros.substitutions import FindPackageShare
+from launch.actions import OpaqueFunction
+from launch.substitutions import EnvironmentVariable
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackagePrefix
+from ament_index_python.packages import get_package_share_directory
 import yaml
 
 
@@ -65,6 +70,33 @@ def launch_setup(context, *args, **kwargs):
             name="glog_component",
         )
 
+    # Stereo Image Processing Nodes
+    disparity_node = ComposableNode(
+            package='stereo_image_proc',
+            plugin='stereo_image_proc::DisparityNode',
+            parameters=[LaunchConfiguration('stereo_config_file')],
+            name="stereo_disparity_node",
+            remappings=[
+                ('left/image_rect', LaunchConfiguration('left_image_topic')),
+                ('left/camera_info', LaunchConfiguration('left_camera_info_topic')),
+                ('right/image_rect', LaunchConfiguration('right_image_topic')),
+                ('right/camera_info', LaunchConfiguration('right_camera_info_topic')),
+            ]
+    )
+
+    pointcloud_node = ComposableNode(
+            package='stereo_image_proc',
+            plugin='stereo_image_proc::PointCloudNode',
+            parameters=[LaunchConfiguration('stereo_config_file')],
+            name="stereo_pointcloud_node",
+            remappings=[
+                ('left/camera_info', LaunchConfiguration('left_camera_info_topic')),
+                ('right/camera_info', LaunchConfiguration('right_camera_info_topic')),
+                ('left/image_rect_color', LaunchConfiguration('left_rgb_image_topic')),
+                ('points2', 'stereo/points_raw'),
+            ]
+    )
+
     # Box filter to remove the Van and other ego materials from the PointCloud
     cropbox_parameters = create_parameter_dict("input_frame", "output_frame")
     cropbox_parameters["negative"] = True
@@ -82,7 +114,7 @@ def launch_setup(context, *args, **kwargs):
             plugin="pointcloud_preprocessor::CropBoxFilterComponent",
             name="crop_box_filter_self",
             remappings=[
-                ("input", "/quanergy/points_raw"),
+                ("input", "stereo/points_raw"),
                 ("output", "self_cropped/pointcloud_ex"),
             ],
             parameters=[cropbox_parameters],
@@ -136,17 +168,19 @@ def launch_setup(context, *args, **kwargs):
     pointcloud_to_laserscan_node = ComposableNode(
             package="pointcloud_to_laserscan",
             plugin="pointcloud_to_laserscan::PointCloudToLaserScanNode",
-            name="quanergy_pointcloud_to_laserscan",
+            name="stereo_pointcloud_to_laserscan",
             remappings=[
-                ("cloud_in", "/quanergy/points_raw"),
-                ("scan", "/quanergy/scan"),
+                ("cloud_in", "stereo/points_raw"),
+                ("scan", "stereo/scan"),
             ],
             parameters=[LaunchConfiguration('pointcloud_to_laserscan_config_file')],
             # extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
-    )
+        )
 
     # todo: add more filters
     nodes.append(glog_component_node)
+    nodes.append(disparity_node)
+    nodes.append(pointcloud_node)
     nodes.append(ego_box_crop_node)
     nodes.append(mirror_box_crop_node)  # todo: might remove
     nodes.append(pointcloud_interpolator_node)  # todo: might remove
@@ -170,54 +204,17 @@ def launch_setup(context, *args, **kwargs):
         condition=IfCondition(LaunchConfiguration("use_pointcloud_container")),
     )
 
-    # Start the LIDAR driver. Launch in parent XML launch
-    driver_node = Node(
-        package='quanergy_client_ros',
-        namespace=LaunchConfiguration('ns'),
-        executable='client_node',
-        condition=IfCondition(LaunchConfiguration("launch_driver")),
-        name='client_node',
-        output='screen',
-        arguments=[
-                "--host", LaunchConfiguration('sensor_ip'),
-                "--settings", LaunchConfiguration('config_file'),
-                # "--use-ros-time", use_ros_time,
-                "--topic", LaunchConfiguration('topic'),
-                "--frame", LaunchConfiguration("frame_id"),
-                # "--calibrate", LaunchConfiguration("calibrate"),
-                "--frame-rate", LaunchConfiguration("frame_rate"),
-                "--return", LaunchConfiguration("return_type")
-        ],
-        # remappings=[
-        #     (LaunchConfiguration('topic'), "pointcloud_raw"),
-        # ]
-    )
-
-    target_container = (
-        container
-        if UnlessCondition(LaunchConfiguration("use_pointcloud_container")).evaluate(context)
-        else LaunchConfiguration("container_name")
-    )  # to load the driver in the container
-
-    # driver_component_loader = LoadComposableNodes(
-    #     composable_node_descriptions=[driver_component],
-    #     target_container=target_container,
-    #     condition=IfCondition(LaunchConfiguration("launch_driver")),
-    # )
-
     launch_data = [container, component_loader]
-    # launch_data.append(target_container)
-    launch_data.append(driver_node)
     return launch_data
 
 
 def generate_launch_description():
 
     package_directory = get_package_share_directory('common_sensor_launch')
-    lidar_config = PathJoinSubstitution(
-                    [FindPackagePrefix('common_sensor_launch'), 'config', 'client.xml'])
+    stereo_config = PathJoinSubstitution(
+                    [FindPackagePrefix('common_sensor_launch'), 'config', 'stereo_image_proc.param.yaml'])
     pointcloud_to_laserscan_config = PathJoinSubstitution(
-            [FindPackagePrefix('common_sensor_launch'), 'config', 'pointcloud_to_laserscan.param.yaml'])
+                    [FindPackagePrefix('common_sensor_launch'), 'config', 'pointcloud_to_laserscan.param.yaml'])
     launch_arguments = []
 
     def add_launch_arg(name: str, default_value=None, description=None):
@@ -226,19 +223,21 @@ def generate_launch_description():
             DeclareLaunchArgument(name, default_value=default_value, description=description)
         )
 
-    add_launch_arg("sensor_ip", "192.168.10.166", "Host name or IP of the sensor.")
-    add_launch_arg("ns", default_value="quanergy", description='Namespace for the node.')
+    # Stereo image processing configuration launch arguments
+    add_launch_arg("left_image_topic", "left/image_rect", "Image (monochrome) topic for the left camera.")
+    add_launch_arg("left_rgb_image_topic", "left/image_rect_color", "Image (rgb) topic for the left camera.")
+    add_launch_arg("left_camera_info_topic", "left/camera_info", "Topic for the left camera info.")
+    add_launch_arg("right_image_topic", "right/image_rect", "Image topic for the right camera.")
+    add_launch_arg("right_camera_info_topic", "right/camera_info", "Topic for the right camera info.")
+
+    # Stereo parameters
+    add_launch_arg("stereo_config_file", default_value=stereo_config,
+                   description='Path to config file for stereo and disparity parameters.')
+
+    # Pointcloud filtering launch arguments
+    add_launch_arg("ns", default_value="stereo", description='Namespace for the node.')
     add_launch_arg("topic", default_value="points", description='ROS topic for publishing the point cloud.')
-    add_launch_arg("frame", default_value="quanergy", description='Frame name inserted in the point cloud')
-    add_launch_arg("return_type", default_value="all", description='0, 1, 2, all, all_separate_topics')
-    add_launch_arg("calibrate", default_value="False",
-                   description='whether to calculate the parameters from sensor data before applying')
-    add_launch_arg("frame_rate", default_value="15.0",
-                   description='frame rate of the sensor; used when calibrate == true only')
-    add_launch_arg("use_ros_time", default_value="True",
-                   description='Flag determining whether to use ROS time in message. Uses sensor time otherwise')
-    add_launch_arg("config_file", lidar_config, description="sensor configuration file")
-    add_launch_arg("launch_driver", "True", "do launch driver")
+    add_launch_arg("frame", default_value="camera_link", description='Frame name inserted in the point cloud')
     add_launch_arg("base_frame", "base_link", "base frame id")
     add_launch_arg("frame_id", "quanergy", "frame id")
     add_launch_arg("input_frame", LaunchConfiguration("base_frame"), "use for cropbox")
@@ -251,10 +250,11 @@ def generate_launch_description():
     add_launch_arg("pointcloud_to_laserscan_config_file", default_value=pointcloud_to_laserscan_config,
                    description='Path to config file for converting pointclouds to laserscans.')
 
+    # Intra process launch arguments
     add_launch_arg("use_multithread", "False", "use multithread")
     add_launch_arg("use_intra_process", "False", "use ROS 2 component container communication")
     add_launch_arg("use_pointcloud_container", "false")
-    add_launch_arg("container_name", "quanergy_node_container")
+    add_launch_arg("container_name", "camera_container")
 
     set_container_executable = SetLaunchConfiguration(
         "container_executable",

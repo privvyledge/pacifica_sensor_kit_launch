@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     # https://autowarefoundation.github.io/autoware.universe/latest/control/joy_controller/#ds4-joystick-key-map
-    joy_type: "DS4"  # joy controller type
+#    joy_type: "DS4"  # joy controller type. Set in launch file
     update_rate: 30.0  # update rate to publish control commands
     accel_ratio: 3.0  # ratio to calculate acceleration (commanded acceleration is ratio * operation)
     brake_ratio: 5.0  # ratio to calculate deceleration (commanded acceleration is -ratio * operation)

@@ -1,7 +1,7 @@
 <launch>
   <arg name="launch_driver" default="true"/>
 
-  <arg name="joy_type" default="DS4" description="options: DS4, G29, P65, XBOX"/>
+  <arg name="joy_type" default="DS4" description="options: DS4, XBOX, G29, P65"/>
   <arg name="external_cmd_source" default="remote" description="options: local, remote"/>
 
   <arg name="input_joy" default="/joy"/>

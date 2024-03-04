@@ -116,7 +116,7 @@ Optionally: launch with containers instead
           <arg name="video_device" value="/dev/video0"/>
           <arg name="framerate" value="30.0"/>
           <arg name="camera_info" value="camera_info"/>
-          <arg name="camera_info_url" value="$(find-pkg-share common_sensor_launch)/config/calibration/camera0_info.yaml"/>
+          <arg name="camera_info_url" value="file://$(find-pkg-share common_sensor_launch)/config/calibration/camera0_info.yaml"/>
           <arg name="use_decompress" value="False"/>
 
           <arg name="use_camera_container" value="$(var use_camera_container)"/>
@@ -145,7 +145,7 @@ Optionally: launch with containers instead
         <arg name="video_device" value="/dev/video2"/>
         <arg name="framerate" value="30.0"/>
         <arg name="camera_info" value="camera_info"/>
-        <arg name="camera_info_url" value="$(find-pkg-share common_sensor_launch)/config/calibration/camera1_info.yaml"/>
+        <arg name="camera_info_url" value="file://$(find-pkg-share common_sensor_launch)/config/calibration/camera1_info.yaml"/>
         <arg name="use_decompress" value="False"/>
 
         <arg name="use_camera_container" value="$(var use_camera_container)"/>

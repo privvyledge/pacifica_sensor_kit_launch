@@ -39,7 +39,7 @@ def launch_setup(context, *args, **kwargs):
     yolo_image_topic = 'rgb/image_rect'  # image_rect, image_color, image_raw
     precision = LaunchConfiguration("precision").perform(context)
     data_path = PathJoinSubstitution([EnvironmentVariable('HOME'), 'autoware_data'])
-    model_path = PathJoinSubstitution([data_path, 'tensorrt_yolox'])
+    model_path = PathJoinSubstitution([data_path, 'tensorrt_yolox/'])
     tensorrt_config_path = FindPackageShare('common_sensor_launch').perform(context) + "/config/perception/detection" + "/tensorrt_yolox" + ".param.yaml"
 
     with open(tensorrt_config_path, "r") as f:

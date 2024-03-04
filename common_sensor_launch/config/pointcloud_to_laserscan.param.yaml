@@ -1,0 +1,14 @@
+/**:
+  ros__parameters:
+    min_height: 0.0 # The minimum height to sample in the point cloud in meters.
+    max_height: 10.0 # The maximum height to sample in the point cloud in meters.
+    angle_min: -3.14159265359  # (-3.14159265359 or -1.5708) The minimum scan angle in radians.
+    angle_max: 3.14159265359  # (3.14159265359 or 1.5708) The maximum scan angle in radians.
+    angle_increment: 0.01745329251  # default: π/180 - (0.01745329251 or 0.0087) Resolution of laser scan in radians per ray.
+    queue_size: 2.0  # Input point cloud queue size.
+    scan_time: 0.0333333333  # (1.0/30.0) The scan rate in seconds. Only used to populate the scan_time field of the output laser scan message.
+    range_min: 0.0  # The minimum ranges to return in meters.
+    range_max: 100.0  # The maximum ranges to return in meters.
+    target_frame: "base_link"  # If provided, transform the pointcloud into this frame before converting to a laser scan. Otherwise, laser scan will be generated in the same frame as the input point cloud.
+    transform_tolerance: 0.01  # Time tolerance for transform lookups. Only used if a target_frame is provided.
+    use_inf: True  # If disabled, report infinite range (no obstacle) as range_max + 1. Otherwise report infinite range as +inf.

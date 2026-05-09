@@ -1,12 +1,3 @@
-"""
-Todo:
-    * launch generic cameras using usb_node or v4l2_camera containers
-    * launch azure kinect ros using container plugin or driver node
-    * launch image rectification containers (e.g ROS or Nvidia)
-    * launch Tensorrt_yolox containers for all cameras
-
-"""
-
 import launch
 from launch.actions import DeclareLaunchArgument
 from launch.actions import SetLaunchConfiguration
@@ -52,6 +43,7 @@ def launch_setup(context, *args, **kwargs):
     nodes = []
 
     camera_driver_node = Node(
+                condition=IfCondition(LaunchConfiguration("launch_driver")),
                 package="azure_kinect_ros_driver",
                 executable='node',
                 # name=camera_name + "azure_kinect_node",
@@ -87,6 +79,7 @@ def launch_setup(context, *args, **kwargs):
                     ],
             )
 
+    # --- RGB Rectification ---
     color_image_rectification_node = ComposableNode(
                     # namespace="camera",
                     package='image_proc',
@@ -119,6 +112,62 @@ def launch_setup(context, *args, **kwargs):
                     ],
             )
 
+    # --- Depth Rectification ---
+    depth_image_rectification_node = ComposableNode(
+            package='image_proc',
+            plugin='image_proc::RectifyNode',
+            name=camera_name + '_rectify_depth_node',
+            condition=IfCondition(LaunchConfiguration("rectify_depth")),
+            remappings=[
+                ('image', 'depth/image_raw'),
+                ('camera_info', 'depth/camera_info'),
+                ('image_rect', 'depth/image_rect')
+            ],
+            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+    )
+
+    # --- Depth-to-RGB Aligned Rectification ---
+    depth_to_rgb_rectification_node = ComposableNode(
+            package='image_proc',
+            plugin='image_proc::RectifyNode',
+            name=camera_name + '_rectify_depth_to_rgb_node',
+            condition=IfCondition(LaunchConfiguration("rectify_depth_to_rgb")),
+            remappings=[
+                ('image', 'depth_to_rgb/image_raw'),
+                ('camera_info', 'depth_to_rgb/camera_info'),
+                ('image_rect', 'depth_to_rgb/image_rect')
+            ],
+            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+    )
+
+    # --- RGB-to-Depth Aligned Rectification ---
+    rgb_to_depth_rectification_node = ComposableNode(
+            package='image_proc',
+            plugin='image_proc::RectifyNode',
+            name=camera_name + '_rectify_rgb_to_depth_node',
+            condition=IfCondition(LaunchConfiguration("rectify_rgb_to_depth")),
+            remappings=[
+                ('image', 'rgb_to_depth/image_raw'),
+                ('camera_info', 'rgb_to_depth/camera_info'),
+                ('image_rect', 'rgb_to_depth/image_rect')
+            ],
+            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+    )
+
+    # --- IR Rectification ---
+    ir_image_rectification_node = ComposableNode(
+            package='image_proc',
+            plugin='image_proc::RectifyNode',
+            name=camera_name + '_rectify_ir_node',
+            condition=IfCondition(LaunchConfiguration("rectify_ir")),
+            remappings=[
+                ('image', 'ir/image_raw'),
+                ('camera_info', 'ir/camera_info'),
+                ('image_rect', 'ir/image_rect')
+            ],
+            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+    )
+
     image_decompressor_node = ComposableNode(
                     package='image_transport_decompressor',
                     plugin='image_preprocessor::ImageTransportDecompressor',
@@ -136,6 +185,7 @@ def launch_setup(context, *args, **kwargs):
                 package="tensorrt_yolox",
                 plugin="tensorrt_yolox::TrtYoloXNode",
                 name=camera_name + "_tensorrt_yolox",
+                condition=IfCondition(LaunchConfiguration("launch_tensorrt")),
                 parameters=[
                     {
                         "score_threshold": tensorrt_yaml_param['score_threshold'],
@@ -165,9 +215,14 @@ def launch_setup(context, *args, **kwargs):
                 ],
             )
 
+    # Append all active nodes to the container
     nodes.append(image_debayer_node)
     nodes.append(color_image_rectification_node)
     # nodes.append(monochrome_image_rectification_node)
+    nodes.append(depth_image_rectification_node)
+    nodes.append(depth_to_rgb_rectification_node)
+    nodes.append(rgb_to_depth_rectification_node)
+    nodes.append(ir_image_rectification_node)
     nodes.append(image_decompressor_node)
     nodes.append(tensorrt_yolox_node)
 
@@ -178,13 +233,15 @@ def launch_setup(context, *args, **kwargs):
         executable=LaunchConfiguration("container_executable"),
         output="both",
         composable_node_descriptions=nodes,
-        condition=UnlessCondition(LaunchConfiguration("use_camera_container")),
+        # Create a new container UNLESS we are told to join an existing one
+        condition=UnlessCondition(LaunchConfiguration("join_existing_container")),
     )
 
     component_loader = LoadComposableNodes(
             composable_node_descriptions=nodes,
             target_container=camera_container_name,
-            condition=IfCondition(LaunchConfiguration("use_camera_container")),
+            # ONLY load components into a target IF we are joining an existing one
+            condition=IfCondition(LaunchConfiguration("join_existing_container")),
     )
 
     launch_data = [container, component_loader]
@@ -201,7 +258,8 @@ def generate_launch_description():
             DeclareLaunchArgument(name, default_value=default_value, description=description)
         )
 
-    # Image arguments
+    # Azure Kinect Driver arguments
+    add_launch_arg("launch_driver", "True", description="Launch hardware driver")
     add_launch_arg("camera_name", "azure_kinect", description="camera name")
     add_launch_arg("color_enabled", "True", description="Enable or disable the color camera")
     add_launch_arg("depth_enabled", "True", description="Enable or disable the depth camera")
@@ -222,25 +280,35 @@ def generate_launch_description():
     add_launch_arg("imu_rate_target", "0", description="Desired output rate of IMU messages. "
                                                        "Set to 0 (default) for full rate (1.6 kHz).")
     add_launch_arg("point_cloud_in_depth_frame", "False",
-                   description="Whether the RGB pointcloud is rendered in the depth frame (true) or RGB frame (false). "
+                   description="Render RGB pointcloud is rendered in the depth frame (true) or RGB frame (false). "
                                "Will either match the resolution of the depth camera (true) or the RGB camera (false).")
-    add_launch_arg("input_image", "rgb/image_raw", description="input camera topic")
+
+    # Image pipeline arguments
     add_launch_arg("input_image", "rgb/image_raw", description="input camera topic")
     add_launch_arg("camera_info", "rgb/camera_info", description="input camera info topic")
     add_launch_arg("use_decompress", "False", description="whether to decompress the raw image")
 
+    # Extra Rectification Toggle Flags
+    add_launch_arg("rectify_depth", "False", description="Rectify the raw depth image")
+    add_launch_arg("rectify_depth_to_rgb", "False", description="Rectify the depth-to-rgb aligned image")
+    add_launch_arg("rectify_rgb_to_depth", "False", description="Rectify the rgb-to-depth aligned image")
+    add_launch_arg("rectify_ir", "False", description="Rectify the raw IR image")
+
     # Yolo Arguments
+    add_launch_arg("launch_tensorrt", "False", description="Whether to launch the TensorRT YoloX node") # Added flag here
     add_launch_arg("precision", "")
     add_launch_arg("output_topic", "", description="output YOLO")
 
     add_launch_arg("model_name", "", description="yolo model type")
     add_launch_arg("label_file", "", description="tensorrt node label file")
 
-    # miscellaneous launch arguments
-    add_launch_arg("camera_container_name", "")
-    add_launch_arg("use_camera_container", "false")
-    add_launch_arg("use_intra_process", "", "use intra process")
-    add_launch_arg("use_multithread", "", "use multithread")
+    # Miscellaneous launch arguments
+    add_launch_arg("camera_container_name", "azure_container")
+    # Changed from use_camera_container to join_existing_container
+    add_launch_arg("join_existing_container", "True",
+                   description="Set to True to load nodes into an existing container instead of spinning up a new one.")
+    add_launch_arg("use_intra_process", "True", "use intra process") # Defaulted to true for performance
+    add_launch_arg("use_multithread", "True", "use multithread")
 
     set_container_executable = SetLaunchConfiguration(
         "container_executable",

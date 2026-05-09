@@ -1,12 +1,3 @@
-"""
-Todo:
-    * launch generic cameras using usb_node or v4l2_camera containers
-    * launch azure kinect ros using container plugin or driver node
-    * launch image rectification containers (e.g ROS or Nvidia)
-    * launch Tensorrt_yolox containers for all cameras
-
-"""
-
 import launch
 from launch.actions import DeclareLaunchArgument
 from launch.actions import SetLaunchConfiguration
@@ -50,10 +41,12 @@ def launch_setup(context, *args, **kwargs):
 
     nodes = []
 
-    camera_driver_node = ComposableNode(
+    # --- Standard USB Camera Node ---
+    usb_cam_node = ComposableNode(
                 package="usb_cam",
                 plugin="usb_cam::UsbCamNode",
                 name=camera_name + "_usb_cam_node",
+                condition=UnlessCondition(LaunchConfiguration("use_gscam")),
                 parameters=[{
                     "camera_name": LaunchConfiguration('camera_name'),  # camera_yaml_param['camera_name']
                     "video_device": LaunchConfiguration('video_device'),  # camera_yaml_param['camera_name']
@@ -76,7 +69,28 @@ def launch_setup(context, *args, **kwargs):
                     "autofocus": camera_yaml_param['autofocus'],
                     "focus": camera_yaml_param['focus'],
                 }],
+                remappings=[],
+                extra_arguments=[
+                    {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
+                ],
+            )
+
+    # --- GSCam Node (For H.264 UDP Streams) ---
+    gscam_node = ComposableNode(
+                package="gscam",
+                plugin="gscam::GSCamNode",
+                name=camera_name + "_gscam_node",
+                condition=IfCondition(LaunchConfiguration("use_gscam")),
+                parameters=[{
+                    "gscam_config": LaunchConfiguration('gscam_config'),
+                    "camera_name": LaunchConfiguration('camera_name'),
+                    "camera_info_url": LaunchConfiguration('camera_info_url'),
+                    "frame_id": LaunchConfiguration('frame_id'),
+                    "sync_sink": False, # Often needed for UDP streams to prevent dropping frames
+                }],
                 remappings=[
+                    ('image_raw', image_rectification_topic),
+                    ('camera_info', input_camera_info)
                 ],
                 extra_arguments=[
                     {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
@@ -144,6 +158,7 @@ def launch_setup(context, *args, **kwargs):
                 package="tensorrt_yolox",
                 plugin="tensorrt_yolox::TrtYoloXNode",
                 name=camera_name + "_tensorrt_yolox",
+                condition=IfCondition(LaunchConfiguration("launch_tensorrt")),
                 parameters=[
                     {
                         "score_threshold": tensorrt_yaml_param['score_threshold'],
@@ -173,7 +188,10 @@ def launch_setup(context, *args, **kwargs):
                 ],
             )
 
-    nodes.append(camera_driver_node)
+    # Only append the driver if launch_driver is True
+    if LaunchConfiguration("launch_driver").perform(context).lower() == "true":
+        nodes.append(usb_cam_node)
+        nodes.append(gscam_node)
     nodes.append(image_debayer_node)
     nodes.append(color_image_rectification_node)
     # nodes.append(monochrome_image_rectification_node)
@@ -187,13 +205,13 @@ def launch_setup(context, *args, **kwargs):
         executable=LaunchConfiguration("container_executable"),
         output="both",
         composable_node_descriptions=nodes,
-        condition=UnlessCondition(LaunchConfiguration("use_camera_container")),
+        condition=UnlessCondition(LaunchConfiguration("join_existing_container")),
     )
 
     component_loader = LoadComposableNodes(
             composable_node_descriptions=nodes,
             target_container=camera_container_name,
-            condition=IfCondition(LaunchConfiguration("use_camera_container")),
+            condition=IfCondition(LaunchConfiguration("join_existing_container")),
     )
 
     launch_data = [container, component_loader]
@@ -210,8 +228,9 @@ def generate_launch_description():
         )
 
     # Image arguments
+    add_launch_arg("launch_driver", "True", description="Launch hardware driver")
     add_launch_arg("camera_name", "", description="camera name")
-    add_launch_arg("video_device", "", description="video driver path")
+    add_launch_arg("video_device", "", description="video driver path (for usb_cam)")
     add_launch_arg("framerate", "", description="fps")
     add_launch_arg("frame_id", "", description="image_frame_id")
     add_launch_arg("input_image", "", description="input camera topic")
@@ -219,18 +238,26 @@ def generate_launch_description():
     add_launch_arg("camera_info_url", "", description="input camera info file")
     add_launch_arg("use_decompress", "False", description="whether to decompress the raw image")
 
+    # Driver Toggle Arguments
+    add_launch_arg("use_gscam", "False", description="Set to true to use gscam for network streams instead of usb_cam")
+    add_launch_arg("gscam_config", "",
+                   description="GStreamer pipeline config string (required if use_gscam is True)."
+                               "Examples: "
+                               "    * CPU: udpsrc port=5000 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw, format=RGB ! appsink"
+                               "    * GPU: udpsrc port=5000 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtph264depay ! h264parse ! nvh264dec ! videoconvert ! video/x-raw, format=RGB ! appsink")
+
     # Yolo Arguments
+    add_launch_arg("launch_tensorrt", "False", description="Whether to launch the TensorRT YoloX node")
     add_launch_arg("precision", "")
     add_launch_arg("output_topic", "", description="output YOLO")
-
     add_launch_arg("model_name", "", description="yolo model type")
     add_launch_arg("label_file", "", description="tensorrt node label file")
 
-    # miscellaneous launch arguments
-    add_launch_arg("camera_container_name", "")
-    add_launch_arg("use_camera_container", "false")
-    add_launch_arg("use_intra_process", "", "use intra process")
-    add_launch_arg("use_multithread", "", "use multithread")
+    # Miscellaneous launch arguments
+    add_launch_arg("camera_container_name", "monocam_container", description="container name")
+    add_launch_arg("join_existing_container", "False", description="Load nodes into existing container")
+    add_launch_arg("use_intra_process", "True", "use intra process")
+    add_launch_arg("use_multithread", "True", "use multithread")
 
     set_container_executable = SetLaunchConfiguration(
         "container_executable",

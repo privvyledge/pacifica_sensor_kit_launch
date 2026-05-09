@@ -8,9 +8,21 @@ Optionally: launch with containers instead
 -->
 
 <launch>
-  <arg name="launch_driver" default="true"/>
+  <arg name="launch_azure" default="true" description="Launch Azure Kinect pipeline"/>
+  <arg name="launch_camera0" default="true" description="Launch front USB camera pipeline"/>
+  <arg name="launch_camera1" default="true" description="Launch back USB camera pipeline"/>
 
-  <!--    common parameters -->
+  <arg name="launch_driver" default="true"/>
+  <arg name="launch_tensorrt" default="false"/>
+  <arg name="shared_container_name" default="camera_container"/>
+
+  <arg name="spawn_shared_container" default="true"/>
+  <arg name="join_existing_container" default="true"/>
+
+  <arg name="use_intra_process" default="true"/>
+  <arg name="use_multithread" default="true"/>
+
+  <!--    camera parameters -->
   <arg name="image_0" default="camera_0" description="image raw topic name"/>
   <arg name="image_1" default="camera_1" description="image raw topic name"/>
 
@@ -19,19 +31,17 @@ Optionally: launch with containers instead
   <arg name="yolo_type" default="yolov3" description="choose image raw number(0-7)"/>
   <arg name="label_file" default="coco.names" description="choose image raw number(0-7)"/>
   <arg name="gpu_id" default="0" description="choose image raw number(0-7)"/>
-  <arg name="use_intra_process" default="true"/>
-  <arg name="use_multithread" default="true"/>
-
-  <!-- miscellaneous params -->
-  <arg name="use_camera_container" default="false"/>
 
   <group>
     <push-ros-namespace namespace="camera"/>
 
+    <node pkg="rclcpp_components" exec="component_container_mt" name="$(var shared_container_name)" namespace="" if="$(var spawn_shared_container)" output="screen">
+      <param name="thread_num" value="4"/> </node>
+
     <group>
       <push-ros-namespace namespace="front" />
 
-      <group>
+      <group>  <!--  if="$(var launch_azure)" -->
         <push-ros-namespace namespace="azure_kinect"/>
 
         <!-- launch camera driver -->
@@ -53,25 +63,31 @@ Optionally: launch with containers instead
 
         <!-- Launch using containers -->
         <include file="$(find-pkg-share common_sensor_launch)/launch/azure_kinect_node_container.launch.py">
+          <arg name="launch_driver" value="$(var launch_azure)"/>
+          <arg name="join_existing_container" value="$(var join_existing_container)"/>
+          <arg name="camera_container_name" value="$(var shared_container_name)"/>
+
           <arg name="camera_name" value="azure_kinect"/>
           <arg name="color_enabled" value="True"/>
-          <arg name="color_resolution" value="1440P"/>
+          <arg name="color_resolution" value="1080P"/>
           <arg name="fps" value="30"/>
-          <arg name="depth_enabled" value="True"/>
+          <arg name="depth_enabled" value="False"/>
           <arg name="depth_mode" value="NFOV_UNBINNED"/>
           <arg name="depth_unit" value="16UC1"/>
           <arg name="color_format" value="bgra"/>
-          <arg name="point_cloud" value="True"/>
+          <arg name="point_cloud" value="False"/>
           <arg name="rgb_point_cloud" value="True"/>
           <arg name="imu_rate_target" value="0"/>
           <arg name="point_cloud_in_depth_frame" value="False" />
           <arg name="input_image" value="rgb/image_raw"/>
           <arg name="camera_info" value="rgb/camera_info"/>
           <arg name="use_decompress" value="False"/>
+          <arg name="rectify_depth" value="False"/>
+          <arg name="rectify_depth_to_rgb" value="False"/>
+          <arg name="rectify_rgb_to_depth" value="False"/>
+          <arg name="rectify_ir" value="False"/>
 
-          <arg name="use_camera_container" value="$(var use_camera_container)"/>
-          <arg name="camera_container_name" value="azure_camera_container"/>
-
+          <arg name="launch_tensorrt" value="$(var launch_tensorrt)"/>
           <arg name="precision" value="fp16"/>
           <arg name="model_name" value="yolox-tiny"/>
           <arg name="label_file" value="$(var label_file)"/>
@@ -81,8 +97,8 @@ Optionally: launch with containers instead
         </include>
       </group>
 
-      <group>
-        <push-ros-namespace namespace="traffic_light"/> <!-- long range or wide angle -->
+      <group> <!--  if="$(var launch_camera0)" -->
+        <push-ros-namespace namespace="front"/> <!-- long range or wide angle -->
 
   <!--      &lt;!&ndash; launch camera driver &ndash;&gt;-->
   <!--      <include file="$(find-pkg-share common_sensor_launch)/launch/monocular_camera.launch.xml">-->
@@ -110,6 +126,10 @@ Optionally: launch with containers instead
 
         <!-- Launch using containers -->
         <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">
+          <arg name="launch_driver" value="$(var launch_camera0)"/>
+          <arg name="join_existing_container" value="$(var join_existing_container)"/>
+          <arg name="camera_container_name" value="$(var shared_container_name)"/>
+
           <arg name="camera_name" value="camera0"/>
           <arg name="frame_id" value="camera0"/>
           <arg name="input_image" value="image_raw"/>
@@ -118,10 +138,10 @@ Optionally: launch with containers instead
           <arg name="camera_info" value="camera_info"/>
           <arg name="camera_info_url" value="file://$(find-pkg-share common_sensor_launch)/config/calibration/camera0_info.yaml"/>
           <arg name="use_decompress" value="False"/>
+          <arg name="use_gscam" value="False"/>
+          <arg name="gscam_config" value=""/>
 
-          <arg name="use_camera_container" value="$(var use_camera_container)"/>
-          <arg name="camera_container_name" value="front_camera_container"/>
-
+          <arg name="launch_tensorrt" value="$(var launch_tensorrt)"/>
           <arg name="precision" value="fp16"/>
           <arg name="model_name" value="yolox-tiny"/>
           <arg name="label_file" value="$(var label_file)"/>
@@ -132,13 +152,41 @@ Optionally: launch with containers instead
 
       </group>
 
-    </group>
+      <group if="$(eval '\'$(var launch_azure)\' == \'true\' and \'$(var launch_camera0)\' == \'true\'')">
+        <include file="$(find-pkg-share common_sensor_launch)/launch/stereo_pointcloud_container.launch.py">
+          <arg name="join_existing_container" value="$(var join_existing_container)"/>
+          <arg name="container_name" value="$(var shared_container_name)"/>
 
-    <group>
-      <push-ros-namespace namespace="right"/>
+          <arg name="left_image_topic" value="/camera/front/camera0/image_rect_mono"/>
+          <arg name="left_rgb_image_topic" value="/camera/front/camera0/image_rect"/>
+          <arg name="left_camera_info_topic" value="/camera/front/camera0/camera_info"/>
+
+          <arg name="right_image_topic" value="/camera/front/azure_kinect/rgb/image_rect_mono"/>
+          <arg name="right_camera_info_topic" value="/camera/front/azure_kinect/rgb/camera_info"/>
+
+          <arg name="stereo_config_file" value="$(find-pkg-share common_sensor_launch)/config/stereo_image_proc.param.yaml"/>
+          <arg name="pointcloud_to_laserscan_config_file" value="$(find-pkg-share common_sensor_launch)/config/pointcloud_to_laserscan.param.yaml"/>
+
+          <arg name="base_frame" value="base_link"/>
+          <arg name="topic_name" value="points_raw"/>
+          <arg name="ns" value="stereo"/>
+          <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>
+          <arg name="use_pointcloud_container" value="$(var use_pointcloud_container)"/>
+
+          <arg name="use_intra_process" value="$(var use_intra_process)"/>
+          <arg name="use_multithread" value="$(var use_multithread)"/>
+        </include>
+      </group>
+
+    <group> <!--  <group if="$(var launch_camera1)" -->
+      <push-ros-namespace namespace="back"/>
 
       <!-- Launch using containers -->
       <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">
+        <arg name="launch_driver" value="$(var launch_camera1)"/>
+        <arg name="join_existing_container" value="$(var join_existing_container)"/>
+        <arg name="camera_container_name" value="$(var shared_container_name)"/>
+
         <arg name="camera_name" value="camera1"/>
         <arg name="frame_id" value="camera1"/>
         <arg name="input_image" value="image_raw"/>
@@ -147,10 +195,10 @@ Optionally: launch with containers instead
         <arg name="camera_info" value="camera_info"/>
         <arg name="camera_info_url" value="file://$(find-pkg-share common_sensor_launch)/config/calibration/camera1_info.yaml"/>
         <arg name="use_decompress" value="False"/>
+        <arg name="use_gscam" value="False"/>
+        <arg name="gscam_config" value=""/>
 
-        <arg name="use_camera_container" value="$(var use_camera_container)"/>
-        <arg name="camera_container_name" value="right_camera_container"/>
-
+        <arg name="launch_tensorrt" value="$(var launch_tensorrt)"/>
         <arg name="precision" value="fp16"/>
         <arg name="model_name" value="yolox-tiny"/>
         <arg name="label_file" value="$(var label_file)"/>

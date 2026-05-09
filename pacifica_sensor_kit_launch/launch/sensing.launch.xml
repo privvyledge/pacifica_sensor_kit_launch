@@ -18,6 +18,8 @@
     <!-- Camera Driver -->
     <include file="$(find-pkg-share pacifica_sensor_kit_launch)/launch/camera.launch.xml">
       <arg name="launch_driver" value="$(var launch_driver)" />
+      <arg name="launch_tensorrt" value="false"/>
+      <arg name="shared_container_name" value="camera_container"/>
     </include>
 
     <!-- GNSS Driver.
@@ -40,7 +42,7 @@
       <arg name="config_file" value="$(find-pkg-share vehicle_velocity_converter)/config/vehicle_velocity_converter.param.yaml"/>
     </include>
 
-    <!-- Joystick control node -->
+    <!-- Joystick control node. todo: update -->
     <include file="$(find-pkg-share pacifica_sensor_kit_launch)/launch/joy_controller.launch.xml">
       <arg name="launch_driver" value="True"/>
       <arg name="config_file" value="$(find-pkg-share f1tenth_sensor_kit_launch)/config/joy/joy_controller.param.yaml"/>

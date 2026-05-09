@@ -141,30 +141,6 @@ def launch_setup(context, *args, **kwargs):
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
         )
 
-    pointcloud_interpolator_node = ComposableNode(
-            package="pointcloud_preprocessor",
-            plugin="pointcloud_preprocessor::DistortionCorrectorComponent",
-            name="distortion_corrector_node",
-            remappings=[
-                ("~/input/twist", "/sensing/vehicle_velocity_converter/twist_with_covariance"),
-                ("~/input/imu", "/sensing/imu/imu_data"),
-                ("~/input/pointcloud", "mirror_cropped/pointcloud_ex"),
-                ("~/output/pointcloud", "rectified/pointcloud_ex"),
-            ],
-            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
-        )
-
-    ring_outlier_filter_node = ComposableNode(
-            package="pointcloud_preprocessor",
-            plugin="pointcloud_preprocessor::RingOutlierFilterComponent",
-            name="ring_outlier_filter",
-            remappings=[
-                ("input", "rectified/pointcloud_ex"),
-                ("output", "outlier_filtered/pointcloud"),
-            ],
-            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
-        )
-
     pointcloud_to_laserscan_node = ComposableNode(
             package="pointcloud_to_laserscan",
             plugin="pointcloud_to_laserscan::PointCloudToLaserScanNode",
@@ -183,8 +159,6 @@ def launch_setup(context, *args, **kwargs):
     nodes.append(pointcloud_node)
     nodes.append(ego_box_crop_node)
     nodes.append(mirror_box_crop_node)  # todo: might remove
-    nodes.append(pointcloud_interpolator_node)  # todo: might remove
-    nodes.append(ring_outlier_filter_node)  # todo: might remove
     nodes.append(pointcloud_to_laserscan_node)
 
     # set container to run all required components in the same process
@@ -252,8 +226,8 @@ def generate_launch_description():
 
     # Intra process launch arguments
     add_launch_arg("use_multithread", "False", "use multithread")
-    add_launch_arg("use_intra_process", "False", "use ROS 2 component container communication")
-    add_launch_arg("use_pointcloud_container", "false")
+    add_launch_arg("use_intra_process", "True", "use ROS 2 component container communication")
+    add_launch_arg("join_existing_container", "False")
     add_launch_arg("container_name", "camera_container")
 
     set_container_executable = SetLaunchConfiguration(

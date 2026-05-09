@@ -19,6 +19,37 @@
     yaw="${calibration['base_link']['sensor_kit_base_link']['yaw']}"
   />
 
+  <!-- Rear axle -->
+  <xacro:macro name="static_tf_macro" params="parent child name x y z roll pitch yaw">
+    <joint name="${name}_joint" type="fixed">
+      <origin
+        xyz="${x}
+             ${y}
+             ${z}"
+        rpy="${roll}
+             ${pitch}
+             ${yaw}"
+      />
+      <parent link="${parent}"/>
+      <child link="${child}"/>
+    </joint>
+    <link name="${name}">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </link>
+  </xacro:macro>
+
+    <xacro:static_tf_macro
+      parent="base_link"
+      child="rear_axle_link"
+      name="rear_axle_joint"
+      x="${calibration['base_link']['rear_axle_link']['x']}"
+      y="${calibration['base_link']['rear_axle_link']['y']}"
+      z="${calibration['base_link']['rear_axle_link']['z']}"
+      roll="${calibration['base_link']['rear_axle_link']['roll']}"
+      pitch="${calibration['base_link']['rear_axle_link']['pitch']}"
+      yaw="${calibration['base_link']['rear_axle_link']['yaw']}"
+    />
+
   <!-- embedded sensors. Todo add aceinna IMU_link and optionally yahboom imu_link -->
 <!--  <xacro:include filename="$(find velodyne_description)/urdf/VLP-16.urdf.xacro"/>-->
 <!--  <xacro:VLP-16 parent="base_link" name="velodyne_rear" topic="velodyne_rear/velodyne_points" hz="10" samples="220" gpu="false">-->

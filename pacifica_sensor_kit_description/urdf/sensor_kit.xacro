@@ -159,6 +159,20 @@
       fov="1.3"
     />
 
+    <!-- IMUs -->
+    <xacro:imu_macro
+      name="yahboo_imu"
+      parent="sensor_kit_base_link"
+      namespace=""
+      x="${calibration['sensor_kit_base_link']['yahboom/imu_link']['x']}"
+      y="${calibration['sensor_kit_base_link']['yahboom/imu_link']['y']}"
+      z="${calibration['sensor_kit_base_link']['yahboom/imu_link']['z']}"
+      roll="${calibration['sensor_kit_base_link']['yahboom/imu_link']['roll']}"
+      pitch="${calibration['sensor_kit_base_link']['yahboom/imu_link']['pitch']}"
+      yaw="${calibration['sensor_kit_base_link']['yahboom/imu_link']['yaw']}"
+      fps="10"
+    />
+
     <!-- gnss -->
     <xacro:imu_macro
       name="yahboo_gnss"

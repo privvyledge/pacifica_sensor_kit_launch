@@ -10,6 +10,21 @@
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
   <exec_depend>common_sensor_launch</exec_depend>
+<!--  <exec_depend>azure_kinect_ros_driver</exec_depend>-->
+<!--  <exec_depend>f1tenth_sensor_kit_launch</exec_depend>-->
+<!--  <exec_depend>gscam</exec_depend>-->
+<!--  <exec_depend>image_proc</exec_depend>-->
+<!--  <exec_depend>image_transport_decompressor</exec_depend>-->
+<!--  <exec_depend>imu_complementary_filter</exec_depend>-->
+<!--  <exec_depend>joy</exec_depend>-->
+<!--  <exec_depend>joy_controller</exec_depend>-->
+<!--  <exec_depend>nmea_navsat_driver</exec_depend>-->
+<!--  <exec_depend>pointcloud_to_laserscan</exec_depend>-->
+<!--  <exec_depend>quanergy_client_ros</exec_depend>-->
+<!--  <exec_depend>rclcpp_components</exec_depend>-->
+<!--  <exec_depend>sample_sensor_kit_launch</exec_depend>-->
+<!--  <exec_depend>vehicle_velocity_converter</exec_depend>-->
+<!--  <exec_depend>wit_ros2_imu</exec_depend>-->
   <exec_depend>gnss_poser</exec_depend>
   <exec_depend>pointcloud_preprocessor</exec_depend>
   <exec_depend>topic_tools</exec_depend>

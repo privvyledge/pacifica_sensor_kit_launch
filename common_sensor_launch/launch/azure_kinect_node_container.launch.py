@@ -221,11 +221,17 @@ def launch_setup(context, *args, **kwargs):
                 ],
             )
 
-    # Append all active nodes to the container
-    nodes.append(image_debayer_node)
-    nodes.append(color_image_rectification_node)
+    launch_debayer = LaunchConfiguration("launch_debayer").perform(context).lower() == 'true'
+    launch_rectify = LaunchConfiguration("launch_rectify").perform(context).lower() == 'true'
 
-    nodes.append(monochrome_image_rectification_node)
+    # Append all active nodes to the container
+    if launch_debayer:
+        nodes.append(image_debayer_node)
+        
+    if launch_rectify:
+        nodes.append(color_image_rectification_node)
+        nodes.append(monochrome_image_rectification_node)
+
     if LaunchConfiguration("rectify_depth").perform(context) == "True":
         nodes.append(depth_image_rectification_node)
     if LaunchConfiguration("rectify_depth_to_rgb").perform(context) == "True":
@@ -239,8 +245,13 @@ def launch_setup(context, *args, **kwargs):
     if LaunchConfiguration("launch_tensorrt").perform(context) == "True":
         nodes.append(tensorrt_yolox_node)
 
+    standalone_camera_driver_name = camera_name + "_standalone_driver_container"
+    if len([p for p in camera_container_name.split("/") if p]) > 1:
+        standalone_camera_driver_name = f"{camera_name}_{camera_container_name.split('/')[-1]}"
+    elif camera_container_name:
+        standalone_camera_driver_name = camera_container_name
     container = ComposableNodeContainer(
-        name=camera_container_name,
+        name=standalone_camera_driver_name,
         namespace=container_namespace,
         package="rclcpp_components",
         executable=LaunchConfiguration("container_executable"),
@@ -316,6 +327,8 @@ def generate_launch_description():
     add_launch_arg("label_file", "", description="tensorrt node label file")
 
     # Miscellaneous launch arguments
+    add_launch_arg("launch_debayer", "True", description="Launch debayer node")
+    add_launch_arg("launch_rectify", "True", description="Launch rectification nodes")
     add_launch_arg("camera_container_name", "azure_container")
     add_launch_arg("container_namespace", "", description="namespace for the container")
     add_launch_arg("join_existing_container", "True",

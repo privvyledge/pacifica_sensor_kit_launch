@@ -15,16 +15,29 @@ Optionally: launch with containers instead
   <arg name="launch_azure_pointcloud" default="false" description="" />
 
   <arg name="launch_driver" default="true"/>
+  <arg name="launch_debayer" default="true"/>
+  <arg name="launch_rectify" default="true"/>
+  <arg name="standalone_camera_driver" default="false"/>
   <arg name="launch_tensorrt" default="false"/>
   <arg name="shared_container_name" default="camera_container"/>
   <arg name="container_namespace" default="/camera" description="Absolute namespace of the container"/>  <!-- /perception/object_detection -->
   <arg name="target_container" default="$(var container_namespace)/$(var shared_container_name)"/>
 
-  <arg name="spawn_shared_container" default="true"/>
-  <arg name="join_existing_container" default="true"/>
+  <arg name="spawn_shared_container" default="false"/>
+  <arg name="join_existing_container" default="false"/>
+
+  <!-- set all the below container names to the target container to launch in one shared container but currently not possible due to the GSCams initialization not being thread safe. -->
+  <arg name="azure_container_name" default="azure_container" /> <!-- $(var target_container) or azure_container -->
+  <arg name="camera0_container_name" default="camera0_container" /> <!-- $(var target_container) or camera0_container -->
+  <arg name="camera1_container_name" default="camera1_container" /> <!--  $(var target_container) or camera0_container  -->
+
+  <arg name="azure_load_delay" default="0.0" description="Delay before loading the Azure camera pipeline"/>
+  <arg name="camera0_load_delay" default="0.0" description="Delay before loading the front USB camera pipeline"/>
+  <arg name="camera1_load_delay" default="0.0" description="Delay before loading the back USB camera pipeline"/>
 
   <arg name="use_intra_process" default="true"/>
   <arg name="use_multithread" default="true"/>
+  <arg name="use_sensor_data_qos" default="true" />
 
   <!--    camera parameters -->
   <arg name="image_0" default="camera_0" description="image raw topic name"/>
@@ -69,8 +82,10 @@ Optionally: launch with containers instead
         <include file="$(find-pkg-share common_sensor_launch)/launch/azure_kinect_node_container.launch.py">
           <arg name="launch_driver" value="$(var launch_driver)"/>
           <arg name="join_existing_container" value="$(var join_existing_container)"/>
-          <arg name="camera_container_name" value="$(var target_container)"/>
+          <arg name="camera_container_name" value="$(var azure_container_name)"/>
           <arg name="container_namespace" value="$(var container_namespace)"/>
+          <arg name="launch_debayer" value="$(var launch_debayer)"/>
+          <arg name="launch_rectify" value="$(var launch_rectify)"/>
 
           <arg name="camera_name" value="azure_kinect"/>
           <arg name="color_enabled" value="True"/>
@@ -133,8 +148,11 @@ Optionally: launch with containers instead
         <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">
           <arg name="launch_driver" value="$(var launch_driver)"/>
           <arg name="join_existing_container" value="$(var join_existing_container)"/>
-          <arg name="camera_container_name" value="$(var target_container)"/>
+          <arg name="camera_container_name" value="$(var camera0_container_name)"/>
           <arg name="container_namespace" value="$(var container_namespace)"/>
+          <arg name="launch_debayer" value="$(var launch_debayer)"/>
+          <arg name="launch_rectify" value="$(var launch_rectify)"/>
+          <arg name="standalone_camera_driver" value="$(var standalone_camera_driver)"/>
 
           <arg name="camera_name" value="camera0"/>
           <arg name="frame_id" value="camera0"/>
@@ -148,6 +166,7 @@ Optionally: launch with containers instead
            <!-- GPU: we'll use this to free up CPU resources but it is more important to perform rectification with GPU -->
           <arg name="gscam_config" value="udpsrc port=5000 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtpjitterbuffer latency=0 ! rtph264depay ! h264parse ! nvh264dec ! videoconvert ! video/x-raw, format=RGB"/>
 <!--          <arg name="gscam_config" value="udpsrc port=5000 ! application/x-rtp, payload=96 ! rtpjitterbuffer latency=50 ! rtph264depay ! avdec_h264 ! videoconvert"/> &lt;!&ndash; CPU &ndash;&gt;-->
+          <arg name="use_sensor_data_qos" value="$(var use_sensor_data_qos)"/>
 
           <arg name="launch_tensorrt" value="$(var launch_tensorrt)"/>
           <arg name="precision" value="fp16"/>
@@ -155,6 +174,7 @@ Optionally: launch with containers instead
           <arg name="label_file" value="$(var label_file)"/>
           <arg name="use_intra_process" value="$(var use_intra_process)"/>
           <arg name="use_multithread" value="$(var use_multithread)"/>
+          <arg name="load_delay" value="$(var camera0_load_delay)"/>
           <arg name="output_topic" value="camera0/rois0"/>
         </include>
       </group>
@@ -192,41 +212,39 @@ Optionally: launch with containers instead
     <group if="$(var launch_camera1)">
       <push-ros-namespace namespace="back"/>
 
-      <!-- This is necessary since the initialization of GStreamer object is not threadsafe. Do this for every camera except the first. -->
-      <timer period="2.0">
-        <!-- This is necessary because the timer has its own scope and the global launch variables are deleted in milliseconds while the timer is waiting. -->
-        <group>
-          <push-ros-namespace namespace="$(var container_namespace)/back"/>
-          <!-- Launch using containers -->
-          <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">
-            <arg name="launch_driver" value="$(var launch_driver)"/>
-            <arg name="join_existing_container" value="$(var join_existing_container)"/>
-            <arg name="camera_container_name" value="$(var target_container)"/>
-            <arg name="container_namespace" value="$(var container_namespace)"/>
+      <!-- GStreamer initialization is not thread-safe. Delay loading this camera's components. -->
+      <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">
+        <arg name="launch_driver" value="$(var launch_driver)"/>
+        <arg name="join_existing_container" value="$(var join_existing_container)"/>
+        <arg name="camera_container_name" value="$(var camera1_container_name)"/>
+        <arg name="container_namespace" value="$(var container_namespace)"/>
+        <arg name="load_delay" value="$(var camera1_load_delay)"/>
+        <arg name="launch_debayer" value="$(var launch_debayer)"/>
+        <arg name="launch_rectify" value="$(var launch_rectify)"/>
+        <arg name="standalone_camera_driver" value="$(var standalone_camera_driver)"/>
 
-            <arg name="camera_name" value="camera1"/>
-            <arg name="frame_id" value="camera1"/>
-            <arg name="input_image" value="image_raw"/>
-            <arg name="video_device" value="/dev/video2"/>
-            <arg name="framerate" value="30.0"/>
-            <arg name="camera_info" value="camera_info"/>
-            <arg name="camera_info_url" value="file://$(find-pkg-share common_sensor_launch)/config/calibration/camera0_info.yaml"/>
-            <arg name="use_decompress" value="False"/>
-            <arg name="use_gscam" value="True"/>
-             <!-- GPU: we'll use this to free up CPU resources but it is more important to perform rectification with GPU -->
-            <arg name="gscam_config" value="udpsrc port=5001 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtpjitterbuffer latency=0 ! rtph264depay ! h264parse ! nvh264dec ! videoconvert ! video/x-raw, format=RGB"/>
-<!--            <arg name="gscam_config" value="udpsrc port=5001 ! application/x-rtp, payload=96 ! rtpjitterbuffer latency=50 ! rtph264depay ! avdec_h264 ! videoconvert"/> &lt;!&ndash; CPU &ndash;&gt;-->
+        <arg name="camera_name" value="camera1"/>
+        <arg name="frame_id" value="camera1"/>
+        <arg name="input_image" value="image_raw"/>
+        <arg name="video_device" value="/dev/video2"/>
+        <arg name="framerate" value="30.0"/>
+        <arg name="camera_info" value="camera_info"/>
+        <arg name="camera_info_url" value="file://$(find-pkg-share common_sensor_launch)/config/calibration/camera0_info.yaml"/>
+        <arg name="use_decompress" value="False"/>
+        <arg name="use_gscam" value="True"/>
+         <!-- GPU: we'll use this to free up CPU resources but it is more important to perform rectification with GPU -->
+        <arg name="gscam_config" value="udpsrc port=5001 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtpjitterbuffer latency=0 ! rtph264depay ! h264parse ! nvh264dec ! videoconvert ! video/x-raw, format=RGB"/>
+<!--        <arg name="gscam_config" value="udpsrc port=5001 ! application/x-rtp, payload=96 ! rtpjitterbuffer latency=50 ! rtph264depay ! avdec_h264 ! videoconvert"/> &lt;!&ndash; CPU &ndash;&gt;-->
+        <arg name="use_sensor_data_qos" value="$(var use_sensor_data_qos)"/>
 
-            <arg name="launch_tensorrt" value="$(var launch_tensorrt)"/>
-            <arg name="precision" value="fp16"/>
-            <arg name="model_name" value="yolox-tiny"/>
-            <arg name="label_file" value="$(var label_file)"/>
-            <arg name="use_intra_process" value="$(var use_intra_process)"/>
-            <arg name="use_multithread" value="$(var use_multithread)"/>
-            <arg name="output_topic" value="camera1/rois0"/>
-          </include>
-        </group>
-      </timer>
+        <arg name="launch_tensorrt" value="$(var launch_tensorrt)"/>
+        <arg name="precision" value="fp16"/>
+        <arg name="model_name" value="yolox-tiny"/>
+        <arg name="label_file" value="$(var label_file)"/>
+        <arg name="use_intra_process" value="$(var use_intra_process)"/>
+        <arg name="use_multithread" value="$(var use_multithread)"/>
+        <arg name="output_topic" value="camera1/rois0"/>
+      </include>
     </group>
 
   </group>

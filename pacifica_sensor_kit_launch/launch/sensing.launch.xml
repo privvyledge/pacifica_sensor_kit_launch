@@ -21,9 +21,9 @@
     <include file="$(find-pkg-share pacifica_sensor_kit_launch)/launch/camera.launch.xml">
       <arg name="launch_driver" value="$(var launch_driver)" />
       <arg name="launch_tensorrt" value="false"/>
+      <arg name="join_existing_container" value="false"/>
       <arg name="shared_container_name" value="camera_container"/>
-      <arg name="container_namespace" value="/sensing/camera" />  <!-- todo: make an argument here as well -->
-      <arg name="join_existing_container" value="true"/>
+      <arg name="container_namespace" value="$(var container_namespace)" />
       <arg name="spawn_shared_container" value="false"/>
     </include>
 

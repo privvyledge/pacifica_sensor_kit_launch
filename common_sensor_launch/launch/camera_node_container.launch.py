@@ -28,9 +28,24 @@ def launch_setup(context, *args, **kwargs):
     image_name = LaunchConfiguration("input_image").perform(context)
     image_rectification_topic = 'image_raw'  # image_raw, image_color
     camera_container_name = LaunchConfiguration("camera_container_name").perform(context)
-    container_namespace = LaunchConfiguration("container_namespace").perform(context)
+    container_namespace = LaunchConfiguration("container_namespace")
     camera_namespace = camera_name + "/" + image_name
     input_camera_info = LaunchConfiguration("camera_info").perform(context)
+
+    # Resolve eagerly; do not leave LaunchConfiguration objects inside delayed actions.
+    video_device = LaunchConfiguration("video_device").perform(context)
+    framerate = LaunchConfiguration("framerate").perform(context)
+    frame_id = LaunchConfiguration("frame_id").perform(context)
+    camera_info_url = LaunchConfiguration("camera_info_url").perform(context)
+    gscam_config = LaunchConfiguration("gscam_config").perform(context)
+    use_intra_process = LaunchConfiguration("use_intra_process").perform(context).lower() == "true"
+    use_decompress = LaunchConfiguration("use_decompress").perform(context).lower() == "true"
+    launch_tensorrt = LaunchConfiguration("launch_tensorrt").perform(context).lower() == "true"
+    precision = LaunchConfiguration("precision").perform(context)
+    model_name = LaunchConfiguration("model_name").perform(context)
+    output_topic = LaunchConfiguration("output_topic").perform(context)
+    load_delay = float(LaunchConfiguration("load_delay").perform(context) or 0.0)
+    join_existing_container = LaunchConfiguration("join_existing_container").perform(context).lower() == 'true'
 
     # tensorrt params
     yolo_image_topic = 'image_rect'  # image_rect, image_color, image_raw
@@ -89,18 +104,19 @@ def launch_setup(context, *args, **kwargs):
                 name=camera_name + "_gscam_node",
                 # condition=IfCondition(LaunchConfiguration("use_gscam")),
                 parameters=[{
-                    "gscam_config": LaunchConfiguration('gscam_config'),
-                    "camera_name": LaunchConfiguration('camera_name'),
-                    "camera_info_url": LaunchConfiguration('camera_info_url'),
-                    "frame_id": LaunchConfiguration('frame_id'),
+                    "gscam_config": gscam_config,
+                    "camera_name": camera_name,
+                    "camera_info_url": camera_info_url,
+                    "frame_id": frame_id,
                     "sync_sink": False, # Often needed for UDP streams to prevent dropping frames
+                    "use_sensor_data_qos": LaunchConfiguration("use_sensor_data_qos"),
                 }],
                 remappings=[
                     ('camera/image_raw', image_rectification_topic),
                     ('camera/camera_info', input_camera_info),
                 ],
                 extra_arguments=[
-                    {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
+                    {"use_intra_process_comms": use_intra_process}
                 ],
             )
 
@@ -198,25 +214,53 @@ def launch_setup(context, *args, **kwargs):
     # Evaluate launch configurations safely as booleans
     launch_driver = LaunchConfiguration("launch_driver").perform(context).lower() == 'true'
     use_gscam = LaunchConfiguration("use_gscam").perform(context).lower() == 'true'
+    launch_debayer = LaunchConfiguration("launch_debayer").perform(context).lower() == 'true'
+    launch_rectify = LaunchConfiguration("launch_rectify").perform(context).lower() == 'true'
+    standalone_camera_driver = LaunchConfiguration("standalone_camera_driver").perform(context).lower() == 'true'
 
+    driver_nodes = []
     # Only append the driver if launch_driver is True
     if launch_driver:
         if use_gscam:
-            nodes.append(gscam_node)
+            driver_nodes.append(gscam_node)
         else:
-            nodes.append(usb_cam_node)
+            driver_nodes.append(usb_cam_node)
 
-    nodes.append(image_debayer_node)
-    nodes.append(color_image_rectification_node)
-    nodes.append(monochrome_image_rectification_node)
+    if launch_debayer:
+        nodes.append(image_debayer_node)
+    
+    if launch_rectify:
+        nodes.append(color_image_rectification_node)
+        nodes.append(monochrome_image_rectification_node)
 
-    if LaunchConfiguration("use_decompress").perform(context).lower() == 'true':
+    if use_decompress == 'true':
         nodes.append(image_decompressor_node)
-    if LaunchConfiguration("launch_tensorrt").perform(context).lower() == 'true':
+    if launch_tensorrt == 'true':
         nodes.append(tensorrt_yolox_node)
 
+    launch_data = []
+
+    standalone_camera_driver_name = camera_name + "_standalone_driver_container"
+    if len([p for p in camera_container_name.split("/") if p]) > 1:
+        standalone_camera_driver_name = f"{camera_name}_{camera_container_name.split('/')[-1]}"
+    elif camera_container_name:
+        standalone_camera_driver_name = camera_container_name
+
+    if standalone_camera_driver and driver_nodes:
+        driver_container = ComposableNodeContainer(
+            name=standalone_camera_driver_name,
+            namespace=container_namespace,
+            package="rclcpp_components",
+            executable=LaunchConfiguration("container_executable"),
+            output="both",
+            composable_node_descriptions=driver_nodes,
+        )
+        launch_data.append(driver_container)
+    else:
+        nodes.extend(driver_nodes)
+
     container = ComposableNodeContainer(
-        name=camera_container_name,
+        name=standalone_camera_driver_name,
         namespace=container_namespace,
         package="rclcpp_components",
         executable=LaunchConfiguration("container_executable"),
@@ -231,8 +275,10 @@ def launch_setup(context, *args, **kwargs):
             condition=IfCondition(LaunchConfiguration("join_existing_container")),
     )
 
-    # Append the delayed loader instead of the immediate one
-    launch_data = [container, component_loader]
+    if load_delay > 0.0:
+        component_loader = TimerAction(period=load_delay, actions=[component_loader])
+
+    launch_data.extend([container, component_loader])
     return launch_data
 
 
@@ -273,11 +319,15 @@ def generate_launch_description():
     add_launch_arg("label_file", "", description="tensorrt node label file")
 
     # Miscellaneous launch arguments
+    add_launch_arg("launch_debayer", "True", description="Launch debayer node")
+    add_launch_arg("launch_rectify", "True", description="Launch rectification nodes")
+    add_launch_arg("standalone_camera_driver", "False", description="Launch camera driver in a separate container process")
     add_launch_arg("camera_container_name", "monocam_container", description="container name")
     add_launch_arg("container_namespace", "", description="namespace for the container")
     add_launch_arg("join_existing_container", "False", description="Load nodes into existing container")
     add_launch_arg("use_intra_process", "True", "use intra process")
     add_launch_arg("use_multithread", "True", "use multithread")
+    add_launch_arg("use_sensor_data_qos", "True", "use sensor data qos")
     add_launch_arg("load_delay", "0.0", description="Seconds to delay loading into the container")
 
     set_container_executable = SetLaunchConfiguration(

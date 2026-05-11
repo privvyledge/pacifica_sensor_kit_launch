@@ -11,10 +11,14 @@ Optionally: launch with containers instead
   <arg name="launch_azure" default="true" description="Launch Azure Kinect pipeline"/>
   <arg name="launch_camera0" default="true" description="Launch front USB camera pipeline"/>
   <arg name="launch_camera1" default="true" description="Launch back USB camera pipeline"/>
+  <arg name="launch_stereo" default="true" description="Launch Stereo disparity/pointcloud processing"/>
+  <arg name="launch_azure_pointcloud" default="false" description="" />
 
   <arg name="launch_driver" default="true"/>
   <arg name="launch_tensorrt" default="false"/>
   <arg name="shared_container_name" default="camera_container"/>
+  <arg name="container_namespace" default="/camera" description="Absolute namespace of the container"/>  <!-- /perception/object_detection -->
+  <arg name="target_container" default="$(var container_namespace)/$(var shared_container_name)"/>
 
   <arg name="spawn_shared_container" default="true"/>
   <arg name="join_existing_container" default="true"/>
@@ -36,12 +40,12 @@ Optionally: launch with containers instead
     <push-ros-namespace namespace="camera"/>
 
     <node pkg="rclcpp_components" exec="component_container_mt" name="$(var shared_container_name)" namespace="" if="$(var spawn_shared_container)" output="screen">
-      <param name="thread_num" value="4"/> </node>
+      <param name="thread_num" value="10"/> </node>
 
     <group>
       <push-ros-namespace namespace="front" />
 
-      <group>  <!--  if="$(var launch_azure)" -->
+      <group if="$(var launch_azure)">
         <push-ros-namespace namespace="azure_kinect"/>
 
         <!-- launch camera driver -->
@@ -63,21 +67,22 @@ Optionally: launch with containers instead
 
         <!-- Launch using containers -->
         <include file="$(find-pkg-share common_sensor_launch)/launch/azure_kinect_node_container.launch.py">
-          <arg name="launch_driver" value="$(var launch_azure)"/>
+          <arg name="launch_driver" value="$(var launch_driver)"/>
           <arg name="join_existing_container" value="$(var join_existing_container)"/>
-          <arg name="camera_container_name" value="$(var shared_container_name)"/>
+          <arg name="camera_container_name" value="$(var target_container)"/>
+          <arg name="container_namespace" value="$(var container_namespace)"/>
 
           <arg name="camera_name" value="azure_kinect"/>
           <arg name="color_enabled" value="True"/>
           <arg name="color_resolution" value="1080P"/>
           <arg name="fps" value="30"/>
-          <arg name="depth_enabled" value="False"/>
+          <arg name="depth_enabled" value="$(var launch_azure_pointcloud)"/>
           <arg name="depth_mode" value="NFOV_UNBINNED"/>
           <arg name="depth_unit" value="16UC1"/>
           <arg name="color_format" value="bgra"/>
-          <arg name="point_cloud" value="False"/>
-          <arg name="rgb_point_cloud" value="True"/>
-          <arg name="imu_rate_target" value="0"/>
+          <arg name="point_cloud" value="$(var launch_azure_pointcloud)"/>
+          <arg name="rgb_point_cloud" value="$(var launch_azure_pointcloud)"/>
+          <arg name="imu_rate_target" value="200"/>
           <arg name="point_cloud_in_depth_frame" value="False" />
           <arg name="input_image" value="rgb/image_raw"/>
           <arg name="camera_info" value="rgb/camera_info"/>
@@ -97,8 +102,8 @@ Optionally: launch with containers instead
         </include>
       </group>
 
-      <group> <!--  if="$(var launch_camera0)" -->
-        <push-ros-namespace namespace="front"/> <!-- long range or wide angle -->
+      <group if="$(var launch_camera0)">
+        <!-- <push-ros-namespace namespace="usb"/> -->
 
   <!--      &lt;!&ndash; launch camera driver &ndash;&gt;-->
   <!--      <include file="$(find-pkg-share common_sensor_launch)/launch/monocular_camera.launch.xml">-->
@@ -126,20 +131,23 @@ Optionally: launch with containers instead
 
         <!-- Launch using containers -->
         <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">
-          <arg name="launch_driver" value="$(var launch_camera0)"/>
+          <arg name="launch_driver" value="$(var launch_driver)"/>
           <arg name="join_existing_container" value="$(var join_existing_container)"/>
-          <arg name="camera_container_name" value="$(var shared_container_name)"/>
+          <arg name="camera_container_name" value="$(var target_container)"/>
+          <arg name="container_namespace" value="$(var container_namespace)"/>
 
           <arg name="camera_name" value="camera0"/>
           <arg name="frame_id" value="camera0"/>
-          <arg name="input_image" value="image_raw"/>
+          <arg name="input_image" value="camera/image_raw"/>
           <arg name="video_device" value="/dev/video0"/>
           <arg name="framerate" value="30.0"/>
           <arg name="camera_info" value="camera_info"/>
           <arg name="camera_info_url" value="file://$(find-pkg-share common_sensor_launch)/config/calibration/camera0_info.yaml"/>
           <arg name="use_decompress" value="False"/>
-          <arg name="use_gscam" value="False"/>
-          <arg name="gscam_config" value=""/>
+          <arg name="use_gscam" value="True"/>
+           <!-- GPU: we'll use this to free up CPU resources but it is more important to perform rectification with GPU -->
+          <arg name="gscam_config" value="udpsrc port=5000 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtpjitterbuffer latency=0 ! rtph264depay ! h264parse ! nvh264dec ! videoconvert ! video/x-raw, format=RGB"/>
+<!--          <arg name="gscam_config" value="udpsrc port=5000 ! application/x-rtp, payload=96 ! rtpjitterbuffer latency=50 ! rtph264depay ! avdec_h264 ! videoconvert"/> &lt;!&ndash; CPU &ndash;&gt;-->
 
           <arg name="launch_tensorrt" value="$(var launch_tensorrt)"/>
           <arg name="precision" value="fp16"/>
@@ -149,10 +157,9 @@ Optionally: launch with containers instead
           <arg name="use_multithread" value="$(var use_multithread)"/>
           <arg name="output_topic" value="camera0/rois0"/>
         </include>
-
       </group>
 
-      <group if="$(eval '\'$(var launch_azure)\' == \'true\' and \'$(var launch_camera0)\' == \'true\'')">
+      <group if="$(eval '\'$(var launch_azure)\' == \'true\' and \'$(var launch_camera0)\' == \'true\' and \'$(var launch_stereo)\' == \'true\'')">
         <include file="$(find-pkg-share common_sensor_launch)/launch/stereo_pointcloud_container.launch.py">
           <arg name="join_existing_container" value="$(var join_existing_container)"/>
           <arg name="container_name" value="$(var shared_container_name)"/>
@@ -170,43 +177,56 @@ Optionally: launch with containers instead
           <arg name="base_frame" value="base_link"/>
           <arg name="topic_name" value="points_raw"/>
           <arg name="ns" value="stereo"/>
-          <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>
-          <arg name="use_pointcloud_container" value="$(var use_pointcloud_container)"/>
+
+          <arg name="use_ego_crop" value="False"/>
+          <arg name="use_mirror_crop" value="False"/>
+<!--          <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>-->
 
           <arg name="use_intra_process" value="$(var use_intra_process)"/>
           <arg name="use_multithread" value="$(var use_multithread)"/>
         </include>
       </group>
 
-    <group> <!--  <group if="$(var launch_camera1)" -->
+    </group>
+
+    <group if="$(var launch_camera1)">
       <push-ros-namespace namespace="back"/>
 
-      <!-- Launch using containers -->
-      <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">
-        <arg name="launch_driver" value="$(var launch_camera1)"/>
-        <arg name="join_existing_container" value="$(var join_existing_container)"/>
-        <arg name="camera_container_name" value="$(var shared_container_name)"/>
+      <!-- This is necessary since the initialization of GStreamer object is not threadsafe. Do this for every camera except the first. -->
+      <timer period="2.0">
+        <!-- This is necessary because the timer has its own scope and the global launch variables are deleted in milliseconds while the timer is waiting. -->
+        <group>
+          <push-ros-namespace namespace="$(var container_namespace)/back"/>
+          <!-- Launch using containers -->
+          <include file="$(find-pkg-share common_sensor_launch)/launch/camera_node_container.launch.py">
+            <arg name="launch_driver" value="$(var launch_driver)"/>
+            <arg name="join_existing_container" value="$(var join_existing_container)"/>
+            <arg name="camera_container_name" value="$(var target_container)"/>
+            <arg name="container_namespace" value="$(var container_namespace)"/>
 
-        <arg name="camera_name" value="camera1"/>
-        <arg name="frame_id" value="camera1"/>
-        <arg name="input_image" value="image_raw"/>
-        <arg name="video_device" value="/dev/video2"/>
-        <arg name="framerate" value="30.0"/>
-        <arg name="camera_info" value="camera_info"/>
-        <arg name="camera_info_url" value="file://$(find-pkg-share common_sensor_launch)/config/calibration/camera1_info.yaml"/>
-        <arg name="use_decompress" value="False"/>
-        <arg name="use_gscam" value="False"/>
-        <arg name="gscam_config" value=""/>
+            <arg name="camera_name" value="camera1"/>
+            <arg name="frame_id" value="camera1"/>
+            <arg name="input_image" value="image_raw"/>
+            <arg name="video_device" value="/dev/video2"/>
+            <arg name="framerate" value="30.0"/>
+            <arg name="camera_info" value="camera_info"/>
+            <arg name="camera_info_url" value="file://$(find-pkg-share common_sensor_launch)/config/calibration/camera0_info.yaml"/>
+            <arg name="use_decompress" value="False"/>
+            <arg name="use_gscam" value="True"/>
+             <!-- GPU: we'll use this to free up CPU resources but it is more important to perform rectification with GPU -->
+            <arg name="gscam_config" value="udpsrc port=5001 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtpjitterbuffer latency=0 ! rtph264depay ! h264parse ! nvh264dec ! videoconvert ! video/x-raw, format=RGB"/>
+<!--            <arg name="gscam_config" value="udpsrc port=5001 ! application/x-rtp, payload=96 ! rtpjitterbuffer latency=50 ! rtph264depay ! avdec_h264 ! videoconvert"/> &lt;!&ndash; CPU &ndash;&gt;-->
 
-        <arg name="launch_tensorrt" value="$(var launch_tensorrt)"/>
-        <arg name="precision" value="fp16"/>
-        <arg name="model_name" value="yolox-tiny"/>
-        <arg name="label_file" value="$(var label_file)"/>
-        <arg name="use_intra_process" value="$(var use_intra_process)"/>
-        <arg name="use_multithread" value="$(var use_multithread)"/>
-        <arg name="output_topic" value="camera1/rois0"/>
-      </include>
-
+            <arg name="launch_tensorrt" value="$(var launch_tensorrt)"/>
+            <arg name="precision" value="fp16"/>
+            <arg name="model_name" value="yolox-tiny"/>
+            <arg name="label_file" value="$(var label_file)"/>
+            <arg name="use_intra_process" value="$(var use_intra_process)"/>
+            <arg name="use_multithread" value="$(var use_multithread)"/>
+            <arg name="output_topic" value="camera1/rois0"/>
+          </include>
+        </group>
+      </timer>
     </group>
 
   </group>

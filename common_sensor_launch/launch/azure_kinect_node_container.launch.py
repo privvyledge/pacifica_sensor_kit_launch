@@ -1,3 +1,8 @@
+"""
+Todo:
+    * Create a file using Isaac ROS to handle the rectification pipeline (https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_image_pipeline/tree/main/isaac_ros_image_proc)
+"""
+
 import launch
 from launch.actions import DeclareLaunchArgument
 from launch.actions import SetLaunchConfiguration
@@ -23,6 +28,7 @@ def launch_setup(context, *args, **kwargs):
     image_name = LaunchConfiguration("input_image").perform(context)
     image_rectification_topic = 'rgb/image_raw'  # image_raw, image_color
     camera_container_name = LaunchConfiguration("camera_container_name").perform(context)
+    container_namespace = LaunchConfiguration("container_namespace").perform(context)
     camera_namespace = camera_name + "/" + image_name
     input_camera_info = LaunchConfiguration("camera_info").perform(context)
 
@@ -97,7 +103,7 @@ def launch_setup(context, *args, **kwargs):
             )
 
     monochrome_image_rectification_node = ComposableNode(
-                    namespace="camera",
+                    # namespace="camera",
                     package='image_proc',
                     plugin='image_proc::RectifyNode',
                     name=camera_name + '_rectify_camera_monochrome_image_node',
@@ -117,7 +123,7 @@ def launch_setup(context, *args, **kwargs):
             package='image_proc',
             plugin='image_proc::RectifyNode',
             name=camera_name + '_rectify_depth_node',
-            condition=IfCondition(LaunchConfiguration("rectify_depth")),
+            # condition=IfCondition(LaunchConfiguration("rectify_depth")),
             remappings=[
                 ('image', 'depth/image_raw'),
                 ('camera_info', 'depth/camera_info'),
@@ -131,7 +137,7 @@ def launch_setup(context, *args, **kwargs):
             package='image_proc',
             plugin='image_proc::RectifyNode',
             name=camera_name + '_rectify_depth_to_rgb_node',
-            condition=IfCondition(LaunchConfiguration("rectify_depth_to_rgb")),
+            # condition=IfCondition(LaunchConfiguration("rectify_depth_to_rgb")),
             remappings=[
                 ('image', 'depth_to_rgb/image_raw'),
                 ('camera_info', 'depth_to_rgb/camera_info'),
@@ -145,7 +151,7 @@ def launch_setup(context, *args, **kwargs):
             package='image_proc',
             plugin='image_proc::RectifyNode',
             name=camera_name + '_rectify_rgb_to_depth_node',
-            condition=IfCondition(LaunchConfiguration("rectify_rgb_to_depth")),
+            # condition=IfCondition(LaunchConfiguration("rectify_rgb_to_depth")),
             remappings=[
                 ('image', 'rgb_to_depth/image_raw'),
                 ('camera_info', 'rgb_to_depth/camera_info'),
@@ -159,7 +165,7 @@ def launch_setup(context, *args, **kwargs):
             package='image_proc',
             plugin='image_proc::RectifyNode',
             name=camera_name + '_rectify_ir_node',
-            condition=IfCondition(LaunchConfiguration("rectify_ir")),
+            # condition=IfCondition(LaunchConfiguration("rectify_ir")),
             remappings=[
                 ('image', 'ir/image_raw'),
                 ('camera_info', 'ir/camera_info'),
@@ -172,7 +178,7 @@ def launch_setup(context, *args, **kwargs):
                     package='image_transport_decompressor',
                     plugin='image_preprocessor::ImageTransportDecompressor',
                     name=camera_name + '_decompressor_node',
-                    condition=IfCondition(LaunchConfiguration("use_decompress")),
+                    # condition=IfCondition(LaunchConfiguration("use_decompress")),
                     # Remap subscribers and publishers
                     remappings=[
                         ('input/compressed_image', 'image_rect/compressed'),  # input: ~/image_raw (camera_namespace + "/image_raw")
@@ -185,7 +191,7 @@ def launch_setup(context, *args, **kwargs):
                 package="tensorrt_yolox",
                 plugin="tensorrt_yolox::TrtYoloXNode",
                 name=camera_name + "_tensorrt_yolox",
-                condition=IfCondition(LaunchConfiguration("launch_tensorrt")),
+                # condition=IfCondition(LaunchConfiguration("launch_tensorrt")),
                 parameters=[
                     {
                         "score_threshold": tensorrt_yaml_param['score_threshold'],
@@ -218,17 +224,24 @@ def launch_setup(context, *args, **kwargs):
     # Append all active nodes to the container
     nodes.append(image_debayer_node)
     nodes.append(color_image_rectification_node)
-    # nodes.append(monochrome_image_rectification_node)
-    nodes.append(depth_image_rectification_node)
-    nodes.append(depth_to_rgb_rectification_node)
-    nodes.append(rgb_to_depth_rectification_node)
-    nodes.append(ir_image_rectification_node)
-    nodes.append(image_decompressor_node)
-    nodes.append(tensorrt_yolox_node)
+
+    nodes.append(monochrome_image_rectification_node)
+    if LaunchConfiguration("rectify_depth").perform(context) == "True":
+        nodes.append(depth_image_rectification_node)
+    if LaunchConfiguration("rectify_depth_to_rgb").perform(context) == "True":
+        nodes.append(depth_to_rgb_rectification_node)
+    if LaunchConfiguration("rectify_rgb_to_depth").perform(context) == "True":
+        nodes.append(rgb_to_depth_rectification_node)
+    if LaunchConfiguration("rectify_ir").perform(context) == "True":
+        nodes.append(ir_image_rectification_node)
+    if LaunchConfiguration("use_decompress").perform(context) == "True":
+        nodes.append(image_decompressor_node)
+    if LaunchConfiguration("launch_tensorrt").perform(context) == "True":
+        nodes.append(tensorrt_yolox_node)
 
     container = ComposableNodeContainer(
         name=camera_container_name,
-        namespace="/perception/object_detection",
+        namespace=container_namespace,
         package="rclcpp_components",
         executable=LaunchConfiguration("container_executable"),
         output="both",
@@ -277,7 +290,7 @@ def generate_launch_description():
     add_launch_arg("point_cloud", "True", description="Generate a point cloud from depth data. Requires depth_enabled")
     add_launch_arg("rgb_point_cloud", "True", description="Colorize the point cloud using the RBG camera. "
                                                           "Requires color_enabled and depth_enabled")
-    add_launch_arg("imu_rate_target", "0", description="Desired output rate of IMU messages. "
+    add_launch_arg("imu_rate_target", "200", description="Desired output rate of IMU messages. "
                                                        "Set to 0 (default) for full rate (1.6 kHz).")
     add_launch_arg("point_cloud_in_depth_frame", "False",
                    description="Render RGB pointcloud is rendered in the depth frame (true) or RGB frame (false). "
@@ -304,7 +317,7 @@ def generate_launch_description():
 
     # Miscellaneous launch arguments
     add_launch_arg("camera_container_name", "azure_container")
-    # Changed from use_camera_container to join_existing_container
+    add_launch_arg("container_namespace", "", description="namespace for the container")
     add_launch_arg("join_existing_container", "True",
                    description="Set to True to load nodes into an existing container instead of spinning up a new one.")
     add_launch_arg("use_intra_process", "True", "use intra process") # Defaulted to true for performance

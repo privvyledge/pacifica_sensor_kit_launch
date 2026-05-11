@@ -1,6 +1,12 @@
+"""
+Todo:
+    * Create a file using Isaac ROS to handle the rectification pipeline (https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_image_pipeline/tree/main/isaac_ros_image_proc)
+"""
+
 import launch
 from launch.actions import DeclareLaunchArgument
 from launch.actions import SetLaunchConfiguration
+from launch.actions import TimerAction
 from launch.conditions import IfCondition
 from launch.conditions import UnlessCondition
 from launch.substitutions.launch_configuration import LaunchConfiguration
@@ -22,6 +28,7 @@ def launch_setup(context, *args, **kwargs):
     image_name = LaunchConfiguration("input_image").perform(context)
     image_rectification_topic = 'image_raw'  # image_raw, image_color
     camera_container_name = LaunchConfiguration("camera_container_name").perform(context)
+    container_namespace = LaunchConfiguration("container_namespace").perform(context)
     camera_namespace = camera_name + "/" + image_name
     input_camera_info = LaunchConfiguration("camera_info").perform(context)
 
@@ -46,7 +53,7 @@ def launch_setup(context, *args, **kwargs):
                 package="usb_cam",
                 plugin="usb_cam::UsbCamNode",
                 name=camera_name + "_usb_cam_node",
-                condition=UnlessCondition(LaunchConfiguration("use_gscam")),
+                # condition=UnlessCondition(LaunchConfiguration("use_gscam")),
                 parameters=[{
                     "camera_name": LaunchConfiguration('camera_name'),  # camera_yaml_param['camera_name']
                     "video_device": LaunchConfiguration('video_device'),  # camera_yaml_param['camera_name']
@@ -78,9 +85,9 @@ def launch_setup(context, *args, **kwargs):
     # --- GSCam Node (For H.264 UDP Streams) ---
     gscam_node = ComposableNode(
                 package="gscam",
-                plugin="gscam::GSCamNode",
+                plugin="gscam::GSCam",
                 name=camera_name + "_gscam_node",
-                condition=IfCondition(LaunchConfiguration("use_gscam")),
+                # condition=IfCondition(LaunchConfiguration("use_gscam")),
                 parameters=[{
                     "gscam_config": LaunchConfiguration('gscam_config'),
                     "camera_name": LaunchConfiguration('camera_name'),
@@ -89,8 +96,8 @@ def launch_setup(context, *args, **kwargs):
                     "sync_sink": False, # Often needed for UDP streams to prevent dropping frames
                 }],
                 remappings=[
-                    ('image_raw', image_rectification_topic),
-                    ('camera_info', input_camera_info)
+                    ('camera/image_raw', image_rectification_topic),
+                    ('camera/camera_info', input_camera_info),
                 ],
                 extra_arguments=[
                     {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
@@ -116,7 +123,7 @@ def launch_setup(context, *args, **kwargs):
                     name=camera_name + '_rectify_camera_image_node',
                     # Remap subscribers and publishers
                     remappings=[
-                        ('image', image_rectification_topic),  # input (camera_namespace + "/image_raw")
+                        ('image', 'image_color'),  # input (camera_namespace + "/image_raw")
                         ('camera_info', input_camera_info),
                         ('image_rect', 'image_rect')  # output
                     ],
@@ -126,7 +133,7 @@ def launch_setup(context, *args, **kwargs):
             )
 
     monochrome_image_rectification_node = ComposableNode(
-                    namespace="camera",
+                    # namespace="camera",
                     package='image_proc',
                     plugin='image_proc::RectifyNode',
                     name=camera_name + '_rectify_camera_monochrome_image_node',
@@ -145,7 +152,7 @@ def launch_setup(context, *args, **kwargs):
                     package='image_transport_decompressor',
                     plugin='image_preprocessor::ImageTransportDecompressor',
                     name=camera_name + '_decompressor_node',
-                    condition=IfCondition(LaunchConfiguration("use_decompress")),
+                    # condition=IfCondition(LaunchConfiguration("use_decompress")),
                     # Remap subscribers and publishers
                     remappings=[
                         ('input/compressed_image', 'image_rect/compressed'),  # input: ~/image_raw (camera_namespace + "/image_raw")
@@ -158,7 +165,7 @@ def launch_setup(context, *args, **kwargs):
                 package="tensorrt_yolox",
                 plugin="tensorrt_yolox::TrtYoloXNode",
                 name=camera_name + "_tensorrt_yolox",
-                condition=IfCondition(LaunchConfiguration("launch_tensorrt")),
+                # condition=IfCondition(LaunchConfiguration("launch_tensorrt")),
                 parameters=[
                     {
                         "score_threshold": tensorrt_yaml_param['score_threshold'],
@@ -188,19 +195,29 @@ def launch_setup(context, *args, **kwargs):
                 ],
             )
 
+    # Evaluate launch configurations safely as booleans
+    launch_driver = LaunchConfiguration("launch_driver").perform(context).lower() == 'true'
+    use_gscam = LaunchConfiguration("use_gscam").perform(context).lower() == 'true'
+
     # Only append the driver if launch_driver is True
-    if LaunchConfiguration("launch_driver").perform(context).lower() == "true":
-        nodes.append(usb_cam_node)
-        nodes.append(gscam_node)
+    if launch_driver:
+        if use_gscam:
+            nodes.append(gscam_node)
+        else:
+            nodes.append(usb_cam_node)
+
     nodes.append(image_debayer_node)
     nodes.append(color_image_rectification_node)
-    # nodes.append(monochrome_image_rectification_node)
-    nodes.append(image_decompressor_node)
-    nodes.append(tensorrt_yolox_node)
+    nodes.append(monochrome_image_rectification_node)
+
+    if LaunchConfiguration("use_decompress").perform(context).lower() == 'true':
+        nodes.append(image_decompressor_node)
+    if LaunchConfiguration("launch_tensorrt").perform(context).lower() == 'true':
+        nodes.append(tensorrt_yolox_node)
 
     container = ComposableNodeContainer(
         name=camera_container_name,
-        namespace="/perception/object_detection",
+        namespace=container_namespace,
         package="rclcpp_components",
         executable=LaunchConfiguration("container_executable"),
         output="both",
@@ -214,6 +231,7 @@ def launch_setup(context, *args, **kwargs):
             condition=IfCondition(LaunchConfiguration("join_existing_container")),
     )
 
+    # Append the delayed loader instead of the immediate one
     launch_data = [container, component_loader]
     return launch_data
 
@@ -244,7 +262,8 @@ def generate_launch_description():
                    description="GStreamer pipeline config string (required if use_gscam is True)."
                                "Examples: "
                                "    * CPU: udpsrc port=5000 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw, format=RGB ! appsink"
-                               "    * GPU: udpsrc port=5000 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtph264depay ! h264parse ! nvh264dec ! videoconvert ! video/x-raw, format=RGB ! appsink")
+                               "    * GPU: udpsrc port=5000 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtph264depay ! h264parse ! nvh264dec ! videoconvert ! video/x-raw, format=RGB ! appsink"
+                               "           udpsrc port=5000 ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264 ! rtpjitterbuffer latency=0 ! rtph264depay ! h264parse ! nvh264dec ! videoconvert ! video/x-raw, format=RGB")
 
     # Yolo Arguments
     add_launch_arg("launch_tensorrt", "False", description="Whether to launch the TensorRT YoloX node")
@@ -255,9 +274,11 @@ def generate_launch_description():
 
     # Miscellaneous launch arguments
     add_launch_arg("camera_container_name", "monocam_container", description="container name")
+    add_launch_arg("container_namespace", "", description="namespace for the container")
     add_launch_arg("join_existing_container", "False", description="Load nodes into existing container")
     add_launch_arg("use_intra_process", "True", "use intra process")
     add_launch_arg("use_multithread", "True", "use multithread")
+    add_launch_arg("load_delay", "0.0", description="Seconds to delay loading into the container")
 
     set_container_executable = SetLaunchConfiguration(
         "container_executable",

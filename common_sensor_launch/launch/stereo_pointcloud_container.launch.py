@@ -28,8 +28,6 @@ import yaml
 
 
 def get_vehicle_info(context):
-    # TODO(TIER IV): Use Parameter Substitution after we drop Galactic support
-    # https://github.com/ros2/launch_ros/blob/master/launch_ros/launch_ros/substitutions/parameter.py
     gp = context.launch_configurations.get("ros_params", {})
     if not gp:
         gp = dict(context.launch_configurations.get("global_params", {}))
@@ -69,6 +67,7 @@ def launch_setup(context, *args, **kwargs):
             plugin="GlogComponent",
             name="glog_component",
         )
+    nodes.append(glog_component_node)
 
     # Stereo Image Processing Nodes
     disparity_node = ComposableNode(
@@ -83,6 +82,7 @@ def launch_setup(context, *args, **kwargs):
                 ('right/camera_info', LaunchConfiguration('right_camera_info_topic')),
             ]
     )
+    nodes.append(disparity_node)
 
     pointcloud_node = ComposableNode(
             package='stereo_image_proc',
@@ -96,86 +96,102 @@ def launch_setup(context, *args, **kwargs):
                 ('points2', 'stereo/points_raw'),
             ]
     )
+    nodes.append(pointcloud_node)
 
-    # Box filter to remove the Van and other ego materials from the PointCloud
-    cropbox_parameters = create_parameter_dict("input_frame", "output_frame")
-    cropbox_parameters["negative"] = True
+    # ==========================================
+    # DYNAMIC TOPIC ROUTER & CONDITIONAL CROPS
+    # ==========================================
+    current_pc_topic = 'stereo/points_raw'
 
-    vehicle_info = get_vehicle_info(context)
-    cropbox_parameters["min_x"] = vehicle_info["min_longitudinal_offset"]
-    cropbox_parameters["max_x"] = vehicle_info["max_longitudinal_offset"]
-    cropbox_parameters["min_y"] = vehicle_info["min_lateral_offset"]
-    cropbox_parameters["max_y"] = vehicle_info["max_lateral_offset"]
-    cropbox_parameters["min_z"] = vehicle_info["min_height_offset"]
-    cropbox_parameters["max_z"] = vehicle_info["max_height_offset"]
+    # --- 1. Ego Crop (Conditional): Box filter to remove the Van and other ego materials from the PointCloud ---
+    use_ego_crop = LaunchConfiguration("use_ego_crop").perform(context).lower() == 'true'
+    if use_ego_crop:
+        cropbox_parameters = create_parameter_dict("input_frame", "output_frame")
+        cropbox_parameters["negative"] = True
+        vehicle_info = get_vehicle_info(context)
+        cropbox_parameters["min_x"] = vehicle_info["min_longitudinal_offset"]
+        cropbox_parameters["max_x"] = vehicle_info["max_longitudinal_offset"]
+        cropbox_parameters["min_y"] = vehicle_info["min_lateral_offset"]
+        cropbox_parameters["max_y"] = vehicle_info["max_lateral_offset"]
+        cropbox_parameters["min_z"] = vehicle_info["min_height_offset"]
+        cropbox_parameters["max_z"] = vehicle_info["max_height_offset"]
 
-    ego_box_crop_node = ComposableNode(
-            package="pointcloud_preprocessor",
-            plugin="pointcloud_preprocessor::CropBoxFilterComponent",
-            name="crop_box_filter_self",
-            remappings=[
-                ("input", "stereo/points_raw"),
-                ("output", "self_cropped/pointcloud_ex"),
-            ],
-            parameters=[cropbox_parameters],
-            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
-        )
+        ego_box_crop_node = ComposableNode(
+                package="pointcloud_preprocessor",
+                plugin="pointcloud_preprocessor::CropBoxFilterComponent",
+                name="crop_box_filter_self",
+                remappings=[
+                    ("input", current_pc_topic),
+                    ("output", "self_cropped/pointcloud_ex"),
+                ],
+                parameters=[cropbox_parameters],
+                extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+            )
+        nodes.append(ego_box_crop_node)
+        current_pc_topic = "self_cropped/pointcloud_ex"
 
-    mirror_info = get_vehicle_mirror_info(context)
-    cropbox_parameters["min_x"] = mirror_info["min_longitudinal_offset"]
-    cropbox_parameters["max_x"] = mirror_info["max_longitudinal_offset"]
-    cropbox_parameters["min_y"] = mirror_info["min_lateral_offset"]
-    cropbox_parameters["max_y"] = mirror_info["max_lateral_offset"]
-    cropbox_parameters["min_z"] = mirror_info["min_height_offset"]
-    cropbox_parameters["max_z"] = mirror_info["max_height_offset"]
+    # --- 2. Mirror Crop (Conditional) ---
+    # Evaluate the launch argument directly in Python
+    use_mirror_crop = LaunchConfiguration("use_mirror_crop").perform(context).lower() == 'true'
 
-    mirror_box_crop_node = ComposableNode(
-            package="pointcloud_preprocessor",
-            plugin="pointcloud_preprocessor::CropBoxFilterComponent",
-            name="crop_box_filter_mirror",
-            remappings=[
-                ("input", "self_cropped/pointcloud_ex"),
-                ("output", "mirror_cropped/pointcloud_ex"),
-            ],
-            parameters=[cropbox_parameters],
-            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
-        )
+    if use_mirror_crop:
+        mirror_info = get_vehicle_mirror_info(context) # Only reads the file if True
+        cropbox_parameters_mirror = create_parameter_dict("input_frame", "output_frame")
+        cropbox_parameters_mirror["negative"] = True
+        cropbox_parameters_mirror["min_x"] = mirror_info["min_longitudinal_offset"]
+        cropbox_parameters_mirror["max_x"] = mirror_info["max_longitudinal_offset"]
+        cropbox_parameters_mirror["min_y"] = mirror_info["min_lateral_offset"]
+        cropbox_parameters_mirror["max_y"] = mirror_info["max_lateral_offset"]
+        cropbox_parameters_mirror["min_z"] = mirror_info["min_height_offset"]
+        cropbox_parameters_mirror["max_z"] = mirror_info["max_height_offset"]
 
+        mirror_box_crop_node = ComposableNode(
+                package="pointcloud_preprocessor",
+                plugin="pointcloud_preprocessor::CropBoxFilterComponent",
+                name="crop_box_filter_mirror",
+                remappings=[
+                    ("input", current_pc_topic),
+                    ("output", "mirror_cropped/pointcloud_ex"),
+                ],
+                parameters=[cropbox_parameters_mirror],
+                extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+            )
+        nodes.append(mirror_box_crop_node)
+
+        # Update the topic router
+        current_pc_topic = "mirror_cropped/pointcloud_ex"
+
+
+    # --- 3. Pointcloud to Laserscan ---
+    # This node dynamically subscribes to whatever the final crop output was.
     pointcloud_to_laserscan_node = ComposableNode(
             package="pointcloud_to_laserscan",
             plugin="pointcloud_to_laserscan::PointCloudToLaserScanNode",
             name="stereo_pointcloud_to_laserscan",
             remappings=[
-                ("cloud_in", "stereo/points_raw"),
+                ("cloud_in", current_pc_topic),
                 ("scan", "stereo/scan"),
             ],
             parameters=[LaunchConfiguration('pointcloud_to_laserscan_config_file')],
             # extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
         )
-
-    # todo: add more filters
-    nodes.append(glog_component_node)
-    nodes.append(disparity_node)
-    nodes.append(pointcloud_node)
-    nodes.append(ego_box_crop_node)
-    nodes.append(mirror_box_crop_node)  # todo: might remove
     nodes.append(pointcloud_to_laserscan_node)
 
-    # set container to run all required components in the same process
+    # Container setup
     container = ComposableNodeContainer(
         name=LaunchConfiguration("container_name"),
         namespace="pointcloud_preprocessor",
         package="rclcpp_components",
         executable=LaunchConfiguration("container_executable"),
         composable_node_descriptions=nodes,
-        condition=UnlessCondition(LaunchConfiguration("use_pointcloud_container")),
+        condition=UnlessCondition(LaunchConfiguration("join_existing_container")),
         output="both",
     )
 
     component_loader = LoadComposableNodes(
         composable_node_descriptions=nodes,
         target_container=LaunchConfiguration("container_name"),
-        condition=IfCondition(LaunchConfiguration("use_pointcloud_container")),
+        condition=IfCondition(LaunchConfiguration("join_existing_container")),
     )
 
     launch_data = [container, component_loader]
@@ -208,7 +224,7 @@ def generate_launch_description():
     add_launch_arg("stereo_config_file", default_value=stereo_config,
                    description='Path to config file for stereo and disparity parameters.')
 
-    # Pointcloud filtering launch arguments
+    # Pointcloud filtering & cropping
     add_launch_arg("ns", default_value="stereo", description='Namespace for the node.')
     add_launch_arg("topic", default_value="points", description='ROS topic for publishing the point cloud.')
     add_launch_arg("frame", default_value="camera_link", description='Frame name inserted in the point cloud')
@@ -216,16 +232,15 @@ def generate_launch_description():
     add_launch_arg("frame_id", "quanergy", "frame id")
     add_launch_arg("input_frame", LaunchConfiguration("base_frame"), "use for cropbox")
     add_launch_arg("output_frame", LaunchConfiguration("base_frame"), "use for cropbox")
-    add_launch_arg(
-        "vehicle_mirror_param_file", description="path to the file of vehicle mirror position yaml"
-    )
 
-    # PointCloud to LaserScan parameters
-    add_launch_arg("pointcloud_to_laserscan_config_file", default_value=pointcloud_to_laserscan_config,
-                   description='Path to config file for converting pointclouds to laserscans.')
+    # NEW CONDITIONAL CROP FLAGS (Defaulted to False for standalone testing)
+    add_launch_arg("use_ego_crop", "False", description="Apply self-cropping box filter")
+    add_launch_arg("use_mirror_crop", "False", description="Apply mirror-cropping box filter")
+    add_launch_arg("vehicle_mirror_param_file", "", description="path to the file of vehicle mirror position yaml")
+    add_launch_arg("pointcloud_to_laserscan_config_file", default_value=pointcloud_to_laserscan_config)
 
     # Intra process launch arguments
-    add_launch_arg("use_multithread", "False", "use multithread")
+    add_launch_arg("use_multithread", "True", "use multithread")
     add_launch_arg("use_intra_process", "True", "use ROS 2 component container communication")
     add_launch_arg("join_existing_container", "False")
     add_launch_arg("container_name", "camera_container")

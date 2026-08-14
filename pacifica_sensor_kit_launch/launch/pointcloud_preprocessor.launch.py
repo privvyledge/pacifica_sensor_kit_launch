@@ -23,8 +23,8 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.actions import LoadComposableNodes
 from launch_ros.descriptions import ComposableNode
+from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution
-from launch_ros.substitutions import FindPackagePrefix
 
 
 def launch_setup(context, *args, **kwargs):
@@ -96,7 +96,7 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     pointcloud_to_laserscan_config = PathJoinSubstitution(
-            [FindPackagePrefix('common_sensor_launch'), 'config', 'pointcloud_to_laserscan.param.yaml'])
+            [FindPackageShare('common_sensor_launch'), 'config', 'pointcloud_to_laserscan.param.yaml'])
     launch_arguments = []
 
     def add_launch_arg(name: str, default_value=None, description=None):

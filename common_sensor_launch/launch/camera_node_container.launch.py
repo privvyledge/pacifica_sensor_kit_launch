@@ -233,9 +233,9 @@ def launch_setup(context, *args, **kwargs):
         nodes.append(color_image_rectification_node)
         nodes.append(monochrome_image_rectification_node)
 
-    if use_decompress == 'true':
+    if use_decompress:
         nodes.append(image_decompressor_node)
-    if launch_tensorrt == 'true':
+    if launch_tensorrt:
         nodes.append(tensorrt_yolox_node)
 
     launch_data = []

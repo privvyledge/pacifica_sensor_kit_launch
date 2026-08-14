@@ -4,6 +4,8 @@
   <arg name="use_concat_filter" default="true"/>
   <arg name="vehicle_id" default="$(env VEHICLE_ID default)"/>
   <arg name="vehicle_mirror_param_file"/>
+  <arg name="use_ego_crop" default="false" description="apply self-cropping box filter (needs Autoware vehicle_info global params)"/>
+  <arg name="use_mirror_crop" default="false" description="apply mirror-cropping box filter"/>
   <arg name="use_pointcloud_container" default="false" description="launch pointcloud container"/>
   <arg name="pointcloud_container_name" default="pointcloud_container"/>
 
@@ -15,7 +17,9 @@
       <push-ros-namespace namespace="top"/>
       <include file="$(find-pkg-share common_sensor_launch)/launch/quanergy.launch.xml">
         <arg name="launch_driver" value="$(var launch_driver)"/>
-        <arg name="launch_driver_only" false="false"/>
+        <arg name="launch_driver_only" value="false"/>
+        <arg name="use_ego_crop" value="$(var use_ego_crop)"/>
+        <arg name="use_mirror_crop" value="$(var use_mirror_crop)"/>
         <arg name="sensor_frame" value="quanergy_link"/>
         <arg name="base_frame" value="base_link"/>
         <arg name="sensor_ip" value="192.168.10.166"/>
@@ -56,7 +60,7 @@
     <!-- todo: add pointclouds colorized by cameras -->
 
     <!-- Concatenate pointclouds from multiple sensors -->
-    <include file="$(find-pkg-share sample_sensor_kit_launch)/launch/pointcloud_preprocessor.launch.py">
+    <include file="$(find-pkg-share pacifica_sensor_kit_launch)/launch/pointcloud_preprocessor.launch.py">
       <arg name="base_frame" value="base_link"/>
       <arg name="use_concat_filter" value="$(var use_concat_filter)"/>
       <arg name="use_intra_process" value="true"/>

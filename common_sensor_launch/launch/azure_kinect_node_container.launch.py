@@ -232,17 +232,17 @@ def launch_setup(context, *args, **kwargs):
         nodes.append(color_image_rectification_node)
         nodes.append(monochrome_image_rectification_node)
 
-    if LaunchConfiguration("rectify_depth").perform(context) == "True":
+    if LaunchConfiguration("rectify_depth").perform(context).lower() == "true":
         nodes.append(depth_image_rectification_node)
-    if LaunchConfiguration("rectify_depth_to_rgb").perform(context) == "True":
+    if LaunchConfiguration("rectify_depth_to_rgb").perform(context).lower() == "true":
         nodes.append(depth_to_rgb_rectification_node)
-    if LaunchConfiguration("rectify_rgb_to_depth").perform(context) == "True":
+    if LaunchConfiguration("rectify_rgb_to_depth").perform(context).lower() == "true":
         nodes.append(rgb_to_depth_rectification_node)
-    if LaunchConfiguration("rectify_ir").perform(context) == "True":
+    if LaunchConfiguration("rectify_ir").perform(context).lower() == "true":
         nodes.append(ir_image_rectification_node)
-    if LaunchConfiguration("use_decompress").perform(context) == "True":
+    if LaunchConfiguration("use_decompress").perform(context).lower() == "true":
         nodes.append(image_decompressor_node)
-    if LaunchConfiguration("launch_tensorrt").perform(context) == "True":
+    if LaunchConfiguration("launch_tensorrt").perform(context).lower() == "true":
         nodes.append(tensorrt_yolox_node)
 
     standalone_camera_driver_name = camera_name + "_standalone_driver_container"

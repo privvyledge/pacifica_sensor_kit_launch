@@ -17,8 +17,8 @@ from launch_ros.actions import Node
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.actions import LoadComposableNodes
 from launch_ros.descriptions import ComposableNode
+from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution
-from launch_ros.substitutions import FindPackagePrefix
 import yaml
 
 
@@ -65,49 +65,62 @@ def launch_setup(context, *args, **kwargs):
             name="glog_component",
         )
 
-    # Box filter to remove the Van and other ego materials from the PointCloud
-    cropbox_parameters = create_parameter_dict("input_frame", "output_frame")
-    cropbox_parameters["negative"] = True
+    # Tracks the latest pointcloud in the chain so optional stages can be skipped
+    current_pc_topic = "/quanergy/points_raw"
 
-    vehicle_info = get_vehicle_info(context)
-    cropbox_parameters["min_x"] = vehicle_info["min_longitudinal_offset"]
-    cropbox_parameters["max_x"] = vehicle_info["max_longitudinal_offset"]
-    cropbox_parameters["min_y"] = vehicle_info["min_lateral_offset"]
-    cropbox_parameters["max_y"] = vehicle_info["max_lateral_offset"]
-    cropbox_parameters["min_z"] = vehicle_info["min_height_offset"]
-    cropbox_parameters["max_z"] = vehicle_info["max_height_offset"]
+    # --- 1. Ego Crop (Conditional): remove the Van and other ego materials from the PointCloud ---
+    use_ego_crop = LaunchConfiguration("use_ego_crop").perform(context).lower() == 'true'
+    if use_ego_crop:
+        cropbox_parameters = create_parameter_dict("input_frame", "output_frame")
+        cropbox_parameters["negative"] = True
+        vehicle_info = get_vehicle_info(context)
+        cropbox_parameters["min_x"] = vehicle_info["min_longitudinal_offset"]
+        cropbox_parameters["max_x"] = vehicle_info["max_longitudinal_offset"]
+        cropbox_parameters["min_y"] = vehicle_info["min_lateral_offset"]
+        cropbox_parameters["max_y"] = vehicle_info["max_lateral_offset"]
+        cropbox_parameters["min_z"] = vehicle_info["min_height_offset"]
+        cropbox_parameters["max_z"] = vehicle_info["max_height_offset"]
 
-    ego_box_crop_node = ComposableNode(
-            package="pointcloud_preprocessor",
-            plugin="pointcloud_preprocessor::CropBoxFilterComponent",
-            name="crop_box_filter_self",
-            remappings=[
-                ("input", "/quanergy/points_raw"),
-                ("output", "self_cropped/pointcloud_ex"),
-            ],
-            parameters=[cropbox_parameters],
-            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
-        )
+        ego_box_crop_node = ComposableNode(
+                package="pointcloud_preprocessor",
+                plugin="pointcloud_preprocessor::CropBoxFilterComponent",
+                name="crop_box_filter_self",
+                remappings=[
+                    ("input", current_pc_topic),
+                    ("output", "self_cropped/pointcloud_ex"),
+                ],
+                parameters=[cropbox_parameters],
+                extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+            )
+        nodes.append(ego_box_crop_node)
+        current_pc_topic = "self_cropped/pointcloud_ex"
 
-    mirror_info = get_vehicle_mirror_info(context)
-    cropbox_parameters["min_x"] = mirror_info["min_longitudinal_offset"]
-    cropbox_parameters["max_x"] = mirror_info["max_longitudinal_offset"]
-    cropbox_parameters["min_y"] = mirror_info["min_lateral_offset"]
-    cropbox_parameters["max_y"] = mirror_info["max_lateral_offset"]
-    cropbox_parameters["min_z"] = mirror_info["min_height_offset"]
-    cropbox_parameters["max_z"] = mirror_info["max_height_offset"]
+    # --- 2. Mirror Crop (Conditional) ---
+    use_mirror_crop = LaunchConfiguration("use_mirror_crop").perform(context).lower() == 'true'
+    if use_mirror_crop:
+        mirror_info = get_vehicle_mirror_info(context)  # Only reads the file if True
+        cropbox_parameters_mirror = create_parameter_dict("input_frame", "output_frame")
+        cropbox_parameters_mirror["negative"] = True
+        cropbox_parameters_mirror["min_x"] = mirror_info["min_longitudinal_offset"]
+        cropbox_parameters_mirror["max_x"] = mirror_info["max_longitudinal_offset"]
+        cropbox_parameters_mirror["min_y"] = mirror_info["min_lateral_offset"]
+        cropbox_parameters_mirror["max_y"] = mirror_info["max_lateral_offset"]
+        cropbox_parameters_mirror["min_z"] = mirror_info["min_height_offset"]
+        cropbox_parameters_mirror["max_z"] = mirror_info["max_height_offset"]
 
-    mirror_box_crop_node = ComposableNode(
-            package="pointcloud_preprocessor",
-            plugin="pointcloud_preprocessor::CropBoxFilterComponent",
-            name="crop_box_filter_mirror",
-            remappings=[
-                ("input", "self_cropped/pointcloud_ex"),
-                ("output", "mirror_cropped/pointcloud_ex"),
-            ],
-            parameters=[cropbox_parameters],
-            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
-        )
+        mirror_box_crop_node = ComposableNode(
+                package="pointcloud_preprocessor",
+                plugin="pointcloud_preprocessor::CropBoxFilterComponent",
+                name="crop_box_filter_mirror",
+                remappings=[
+                    ("input", current_pc_topic),
+                    ("output", "mirror_cropped/pointcloud_ex"),
+                ],
+                parameters=[cropbox_parameters_mirror],
+                extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+            )
+        nodes.append(mirror_box_crop_node)
+        current_pc_topic = "mirror_cropped/pointcloud_ex"
 
     pointcloud_interpolator_node = ComposableNode(
             package="pointcloud_preprocessor",
@@ -116,18 +129,19 @@ def launch_setup(context, *args, **kwargs):
             remappings=[
                 ("~/input/twist", "/sensing/vehicle_velocity_converter/twist_with_covariance"),
                 ("~/input/imu", "/sensing/imu/imu_data"),
-                ("~/input/pointcloud", "mirror_cropped/pointcloud_ex"),
+                ("~/input/pointcloud", current_pc_topic),
                 ("~/output/pointcloud", "rectified/pointcloud_ex"),
             ],
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
         )
+    current_pc_topic = "rectified/pointcloud_ex"
 
     ring_outlier_filter_node = ComposableNode(
             package="pointcloud_preprocessor",
             plugin="pointcloud_preprocessor::RingOutlierFilterComponent",
             name="ring_outlier_filter",
             remappings=[
-                ("input", "rectified/pointcloud_ex"),
+                ("input", current_pc_topic),
                 ("output", "outlier_filtered/pointcloud"),
             ],
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
@@ -147,8 +161,6 @@ def launch_setup(context, *args, **kwargs):
 
     # todo: add more filters
     nodes.append(glog_component_node)
-    nodes.append(ego_box_crop_node)
-    nodes.append(mirror_box_crop_node)  # todo: might remove
     nodes.append(pointcloud_interpolator_node)  # todo: might remove
     nodes.append(ring_outlier_filter_node)  # todo: might remove
     nodes.append(pointcloud_to_laserscan_node)
@@ -215,9 +227,9 @@ def generate_launch_description():
 
     package_directory = get_package_share_directory('common_sensor_launch')
     lidar_config = PathJoinSubstitution(
-                    [FindPackagePrefix('common_sensor_launch'), 'config', 'client.xml'])
+                    [FindPackageShare('common_sensor_launch'), 'config', 'quanergy_client.xml'])
     pointcloud_to_laserscan_config = PathJoinSubstitution(
-            [FindPackagePrefix('common_sensor_launch'), 'config', 'pointcloud_to_laserscan.param.yaml'])
+            [FindPackageShare('common_sensor_launch'), 'config', 'pointcloud_to_laserscan.param.yaml'])
     launch_arguments = []
 
     def add_launch_arg(name: str, default_value=None, description=None):
@@ -243,6 +255,8 @@ def generate_launch_description():
     add_launch_arg("frame_id", "quanergy", "frame id")
     add_launch_arg("input_frame", LaunchConfiguration("base_frame"), "use for cropbox")
     add_launch_arg("output_frame", LaunchConfiguration("base_frame"), "use for cropbox")
+    add_launch_arg("use_ego_crop", "False", description="Apply self-cropping box filter")
+    add_launch_arg("use_mirror_crop", "False", description="Apply mirror-cropping box filter")
     add_launch_arg(
         "vehicle_mirror_param_file", description="path to the file of vehicle mirror position yaml"
     )

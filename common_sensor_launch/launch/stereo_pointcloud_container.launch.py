@@ -22,7 +22,6 @@ from launch_ros.substitutions import FindPackageShare
 from launch.actions import OpaqueFunction
 from launch.substitutions import EnvironmentVariable
 from launch.substitutions import PathJoinSubstitution
-from launch_ros.substitutions import FindPackagePrefix
 from ament_index_python.packages import get_package_share_directory
 import yaml
 
@@ -202,9 +201,9 @@ def generate_launch_description():
 
     package_directory = get_package_share_directory('common_sensor_launch')
     stereo_config = PathJoinSubstitution(
-                    [FindPackagePrefix('common_sensor_launch'), 'config', 'stereo_image_proc.param.yaml'])
+                    [FindPackageShare('common_sensor_launch'), 'config', 'stereo_image_proc.param.yaml'])
     pointcloud_to_laserscan_config = PathJoinSubstitution(
-                    [FindPackagePrefix('common_sensor_launch'), 'config', 'pointcloud_to_laserscan.param.yaml'])
+                    [FindPackageShare('common_sensor_launch'), 'config', 'pointcloud_to_laserscan.param.yaml'])
     launch_arguments = []
 
     def add_launch_arg(name: str, default_value=None, description=None):

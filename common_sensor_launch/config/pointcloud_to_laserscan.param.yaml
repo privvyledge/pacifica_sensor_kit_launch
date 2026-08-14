@@ -5,7 +5,7 @@
     angle_min: -3.14159265359  # (-3.14159265359 or -1.5708) The minimum scan angle in radians.
     angle_max: 3.14159265359  # (3.14159265359 or 1.5708) The maximum scan angle in radians.
     angle_increment: 0.01745329251  # default: π/180 - (0.01745329251 or 0.0087) Resolution of laser scan in radians per ray.
-    queue_size: 2.0  # Input point cloud queue size.
+    queue_size: 2  # Input point cloud queue size.
     scan_time: 0.0333333333  # (1.0/30.0) The scan rate in seconds. Only used to populate the scan_time field of the output laser scan message.
     range_min: 0.0  # The minimum ranges to return in meters.
     range_max: 100.0  # The maximum ranges to return in meters.
